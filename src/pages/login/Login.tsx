@@ -1,79 +1,140 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../../firebase-config";
-
 import EmailInput from "../../components/EmailInput";
+import PasswordInput from "../../components/PasswordInput";
 import Button from "../../components/Button";
 import aspectLogo from "../../assets/aspect-logo-primary.svg";
+import chumleyLogo from "../../assets/chumley_logo.jpg";
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleEmailChange = (value: string) => {
-    setEmail(value);
-    if (emailError) setEmailError("");
-  };
+  const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
+  const CLIENT_SECRET = import.meta.env.VITE_CLIENT_SECRET;
+  const AUTH_URL_PROXY = "/auth-api/services/oauth2/token";
+  const LOGIN_API_URL_PROXY = "/api/services/apexrest/UserLogin";
 
-  const handleContinue = async () => {
-    if (!email) {
-      setEmailError("Email is required");
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!CLIENT_ID || !CLIENT_SECRET) {
+      setError("Configuration error: Missing Client ID or Secret.");
       return;
     }
+
+    if (!email || !password) {
+      setError("Please enter both email and password.");
+      return;
+    }
+
     setIsSubmitting(true);
-    setEmailError("");
 
     try {
-      const usersCollectionRef = collection(db, "communityUsers");
+      const tokenResponse = await fetch(AUTH_URL_PROXY, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "client_credentials",
+          client_id: CLIENT_ID,
+          client_secret: CLIENT_SECRET,
+        }),
+      });
 
-      // This query now correctly uses "Email" (uppercase E)
-      const q = query(usersCollectionRef, where("Email", "==", email));
-
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        // The email exists, redirect to the portal
-        navigate("/new-job");
-      } else {
-        // The email does not exist, redirect to the sign-up page
-        navigate("/signup", { state: { email: email } });
+      const tokenData = await tokenResponse.json();
+      if (!tokenResponse.ok || !tokenData.access_token) {
+        throw new Error(
+          tokenData.error_description || "Could not authenticate application."
+        );
       }
-    } catch (error) {
-      console.error("Error checking user in Firestore:", error);
-      setEmailError("An error occurred. Please try again.");
+
+      const accessToken = tokenData.access_token;
+
+      const loginResponse = await fetch(LOGIN_API_URL_PROXY, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ username: email, password }),
+      });
+
+      const loginData = await loginResponse.json();
+
+      if (loginResponse.ok && loginData.statusCode === 200) {
+        sessionStorage.setItem("authToken", accessToken);
+        navigate("/home");
+      } else {
+        throw new Error(loginData.message || "Invalid username or password.");
+      }
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-2">
-      <div className="max-w-md w-full flex flex-col items-stretch gap-6 px-8 py-14 bg-white rounded-lg">
+    <div className="relative min-h-screen flex items-center justify-center px-2 bg-[#90A8D1] overflow-hidden">
+      {/* Abstract blue shape background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#7D9CC0] to-[#90A8D1]">
+        <div className="absolute -bottom-32 -left-32 w-[500px] h-[500px] bg-[#6C87B5] rounded-full opacity-40"></div>
+        <div className="absolute top-[-100px] right-[-150px] w-[600px] h-[600px] bg-[#6C87B5] rounded-full opacity-30"></div>
+      </div>
+
+      <div className="relative max-w-md w-full flex flex-col items-stretch gap-6 px-8 py-12 bg-white rounded-lg shadow-md z-10">
         <div className="flex justify-center mb-4">
-          <img src={aspectLogo} alt="Aspect Logo" className="h-12 w-auto" />
+          <img src={aspectLogo} alt="Aspect Logo" className="h-14 w-auto" />
         </div>
-        <div className="flex flex-col items-center gap-4">
+
+        <form onSubmit={handleLogin} className="space-y-5">
           <EmailInput
             value={email}
-            onChange={handleEmailChange}
-            label="Email"
-            placeholder="Enter your email to continue"
+            onChange={setEmail}
+            label="Username"
+            placeholder="Enter your email"
             required
-            error={emailError}
           />
+          <PasswordInput
+            value={password}
+            onChange={setPassword}
+            label="Password"
+            placeholder="Enter your password"
+            required
+          />
+          {error && (
+            <div className="text-red-600 text-sm text-center" role="alert">
+              <p>{error}</p>
+            </div>
+          )}
           <Button
-            onClick={handleContinue}
             type="submit"
             variant="primary"
             size="lg"
-            className="w-full mt-4"
+            className="w-full mt-2 bg-[#2457A6] text-[#D3E000] hover:bg-[#1E4A8A] rounded-md"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Checking..." : "Continue"}
+            {isSubmitting ? "Logging in..." : "Login"}
           </Button>
+        </form>
+
+        <div className="text-center mt-4">
+          <a
+            href="/forgot-password"
+            className="text-sm text-gray-500 hover:underline"
+          >
+            Forgot password?
+          </a>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-center mt-6 text-sm text-gray-500">
+          <span className="mr-2">powered by:</span>
+          <img src={chumleyLogo} alt="Chumley Logo" className="h-4" />
         </div>
       </div>
     </div>
