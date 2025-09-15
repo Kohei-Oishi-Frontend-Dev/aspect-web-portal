@@ -2,8 +2,11 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import EmailInput from "../../components/EmailInput";
 import Button from "../../components/Button";
-import aspectLogo from "../../assets/aspect-logo-primary.svg";
+// import aspectLogo from "../../assets/aspect-logo-primary.svg";
+// import aspect_logo from "../../assets/aspect-logo-icon.svg";
+import aspect_logo from "../../assets/Logomark.jpg";
 import chumleyLogo from "../../assets/chumley_logo.jpg";
+import bgImage from "../../assets/background.jpg";
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -74,16 +77,13 @@ const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center px-2 bg-[#90A8D1] overflow-hidden">
-      {/* Abstract background shapes */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#7D9CC0] to-[#90A8D1]">
-        <div className="absolute -bottom-32 -left-32 w-[500px] h-[500px] bg-[#6C87B5] rounded-full opacity-40"></div>
-        <div className="absolute top-[-100px] right-[-150px] w-[600px] h-[600px] bg-[#6C87B5] rounded-full opacity-30"></div>
-      </div>
-
+    <div
+      className="relative min-h-screen flex items-center justify-center p-4 md:p-6 bg-cover bg-center"
+      style={{ backgroundImage: `url(${bgImage})` }}
+    >
       <div className="relative max-w-md w-full flex flex-col items-stretch gap-6 px-8 py-12 bg-white rounded-lg shadow-md z-10">
         <div className="flex justify-center mb-4">
-          <img src={aspectLogo} alt="Aspect Logo" className="h-14 w-auto" />
+          <img src={aspect_logo} className="h-14 w-auto" />
         </div>
 
         <div className="flex flex-col items-center gap-2 text-center">

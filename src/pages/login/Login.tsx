@@ -1,16 +1,31 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import EmailInput from "../../components/EmailInput";
 import PasswordInput from "../../components/PasswordInput";
 import Button from "../../components/Button";
-import aspectLogo from "../../assets/aspect-logo-primary.svg";
+import aspectLogo from "../../assets/Logomark.jpg";
 import chumleyLogo from "../../assets/chumley_logo.jpg";
+import bgImage from "../../assets/background.jpg";
+
+const GREY = "#646F86"; // subtitle/placeholder
+const ERR = "#812F1D"; // Text/Label & border in Figma
+const ERR_BG = "#FAEDEA"; // Surface/Subtle bg
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+
+  const [emailError, setEmailError] = useState<string | undefined>(undefined);
+  const [passwordError, setPasswordError] = useState<string | undefined>(
+    undefined
+  );
+  const [bannerError, setBannerError] = useState("");
+
+  // Count failed attempts (invalid inputs OR wrong credentials)
+  const [failedAttempts, setFailedAttempts] = useState(0);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
@@ -18,42 +33,65 @@ const Login: React.FC = () => {
   const AUTH_URL_PROXY = "/auth-api/services/oauth2/token";
   const LOGIN_API_URL_PROXY = "/api/services/apexrest/UserLogin";
 
+  const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
+  // Show Sign Up only after 3 failures
+  const showSignup = failedAttempts >= 3;
+
+  const registerFail = () => setFailedAttempts((n) => n + 1);
+
+  const preValidate = () => {
+    let ok = true;
+    setEmailError(undefined);
+    setPasswordError(undefined);
+    setBannerError("");
+
+    if (!email || !isEmail(email)) {
+      setEmailError("Invalid email address");
+      ok = false;
+    }
+    if (!password || password.length < 6) {
+      setPasswordError("Passwords must be at least six characters.");
+      ok = false;
+    }
+    if (!CLIENT_ID || !CLIENT_SECRET) {
+      setBannerError("Configuration error: Missing Client ID or Secret.");
+      ok = false;
+    }
+    return ok;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
-    if (!CLIENT_ID || !CLIENT_SECRET) {
-      setError("Configuration error: Missing Client ID or Secret.");
-      return;
-    }
-
-    if (!email || !password) {
-      setError("Please enter both email and password.");
+    if (!preValidate()) {
+      registerFail();
       return;
     }
 
     setIsSubmitting(true);
+    setBannerError("");
 
     try {
+      // 1) OAuth
       const tokenResponse = await fetch(AUTH_URL_PROXY, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
           grant_type: "client_credentials",
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
+          client_id: CLIENT_ID!,
+          client_secret: CLIENT_SECRET!,
         }),
       });
-
       const tokenData = await tokenResponse.json();
-      if (!tokenResponse.ok || !tokenData.access_token) {
+      if (!tokenResponse.ok || !tokenData?.access_token) {
         throw new Error(
-          tokenData.error_description || "Could not authenticate application."
+          tokenData?.error_description || "Could not authenticate application."
         );
       }
-
       const accessToken = tokenData.access_token;
 
+      // 2) Login
       const loginResponse = await fetch(LOGIN_API_URL_PROXY, {
         method: "POST",
         headers: {
@@ -62,77 +100,138 @@ const Login: React.FC = () => {
         },
         body: JSON.stringify({ username: email, password }),
       });
-
       const loginData = await loginResponse.json();
 
       if (loginResponse.ok && loginData.statusCode === 200) {
+        setFailedAttempts(0);
         sessionStorage.setItem("authToken", accessToken);
+        sessionStorage.setItem("userId", loginData.userId);
+        sessionStorage.setItem("accountId", loginData.accountId);
+        sessionStorage.setItem("userAccess", loginData.userAccess);
+        sessionStorage.setItem("sectorType", loginData.sectorType);
         navigate("/home");
       } else {
-        throw new Error(loginData.message || "Invalid username or password.");
+        registerFail();
+        setBannerError(
+          "Your login attempt has failed. Make sure the username and password are correct."
+        );
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
+    } catch (_err) {
+      registerFail();
+      setBannerError(
+        "Your login attempt has failed. Make sure the username and password are correct."
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="relative min-h-screen flex items-center justify-center px-2 bg-[#90A8D1] overflow-hidden">
-      {/* Abstract blue shape background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#7D9CC0] to-[#90A8D1]">
-        <div className="absolute -bottom-32 -left-32 w-[500px] h-[500px] bg-[#6C87B5] rounded-full opacity-40"></div>
-        <div className="absolute top-[-100px] right-[-150px] w-[600px] h-[600px] bg-[#6C87B5] rounded-full opacity-30"></div>
-      </div>
+  // When banner is showing, we want both inputs to adopt the full error skin & text color
+  const forceErrorSkin = !!bannerError;
 
-      <div className="relative max-w-md w-full flex flex-col items-stretch gap-6 px-8 py-12 bg-white rounded-lg shadow-md z-10">
-        <div className="flex justify-center mb-4">
-          <img src={aspectLogo} alt="Aspect Logo" className="h-14 w-auto" />
+  return (
+    <div
+      className="relative min-h-screen flex items-center justify-center p-4 md:p-6 bg-cover bg-center"
+      style={{ backgroundImage: `url(${bgImage})` }}
+    >
+      <div className="relative w-full max-w-md bg-white rounded-xl shadow-md px-8 py-10">
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <img src={aspectLogo} className="h-16 w-auto" alt="Aspect" />
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        {/* Banner: centered, Figma color */}
+        {bannerError && (
+          <p className="mb-4 text-center text-sm leading-snug text-[#812F1D]">
+            {bannerError}
+          </p>
+        )}
+
+        {/* Form (fixed width 390px like Figma) */}
+        <form
+          onSubmit={handleLogin}
+          className="mx-auto flex w-[390px] max-w-full flex-col gap-4"
+        >
+          {/* Username */}
           <EmailInput
             value={email}
-            onChange={setEmail}
+            onChange={(v) => {
+              setEmail(v);
+              if (isEmail(v)) setEmailError(undefined);
+              if (bannerError) setBannerError("");
+            }}
             label="Username"
-            placeholder="Enter your email"
-            required
+            error={emailError}
+            labelClassName={bannerError ? "text-[#812F1D]" : "text-[#646F86]"}
+            className={
+              bannerError
+                ? "!text-[#812F1D] bg-[#FAEDEA] border-[#812F1D] ring-2 ring-[#812F1D] placeholder-[#646F86]"
+                : "text-black border-gray-300 focus:ring-2 focus:ring-[#2457A6] placeholder-[#646F86]"
+            }
           />
+
+          {/* Password */}
           <PasswordInput
             value={password}
-            onChange={setPassword}
+            onChange={(v) => {
+              setPassword(v);
+              setPasswordError(
+                v && v.length < 6
+                  ? "Passwords must be at least six characters."
+                  : undefined
+              );
+              if (bannerError) setBannerError("");
+            }}
             label="Password"
-            placeholder="Enter your password"
-            required
+            error={passwordError}
+            validatePassword={false}
+            labelClassName={bannerError ? "text-[#812F1D]" : "text-[#646F86]"}
+            className={
+              bannerError || passwordError
+                ? "!text-[#812F1D] bg-[#FAEDEA] border-[#812F1D] ring-2 ring-[#812F1D] placeholder-[#646F86]"
+                : "text-black border-gray-300 focus:ring-2 focus:ring-[#2457A6] placeholder-[#646F86]"
+            }
           />
-          {error && (
-            <div className="text-red-600 text-sm text-center" role="alert">
-              <p>{error}</p>
-            </div>
-          )}
+
           <Button
             type="submit"
             variant="primary"
             size="lg"
-            className="w-full mt-2 bg-[#2457A6] text-[#D3E000] hover:bg-[#1E4A8A] rounded-md"
+            className="mt-1 h-11 w-full rounded bg-[#2457A6] text-[#D3E000] hover:bg-[#1E4A8A] disabled:opacity-70"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Logging in..." : "Login"}
           </Button>
+
+          {/* Footer row: Sign Up (left) — Forgot password? (right) */}
+          {showSignup ? (
+            <div className="mt-3 flex w-full items-center justify-between text-[12px]">
+              <div className="text-[#646F86]">
+                Don’t have an account?{" "}
+                <Link
+                  to="/signup"
+                  className="font-extrabold text-[#646F86] underline"
+                >
+                  Sign Up
+                </Link>
+              </div>
+              <Link to="/forgot-password" className="text-[#646F86] underline">
+                Forgot password?
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-3 flex w-full items-center justify-center">
+              <Link
+                to="/forgot-password"
+                className="text-[12px] text-[#646F86] underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          )}
         </form>
 
-        <div className="text-center mt-4">
-          <a
-            href="/forgot-password"
-            className="text-sm text-gray-500 hover:underline"
-          >
-            Forgot password?
-          </a>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-center mt-6 text-sm text-gray-500">
+        <div className="mt-8 flex items-center justify-center text-xs text-[#646F86]">
           <span className="mr-2">powered by:</span>
           <img src={chumleyLogo} alt="Chumley Logo" className="h-4" />
         </div>

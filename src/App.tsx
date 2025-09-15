@@ -15,6 +15,7 @@ import WorkLayout from "./pages/work/WorkLayout";
 import LocationsLayout from "./pages/locations/LocationLayout";
 import LegalLayout from "./pages/legal/LegalLayout";
 import UsersLayout from "./pages/users/UserLayout";
+import ProfileLayout from "./pages/profile/ProfileLayout";
 
 // This higher-order component wraps your main pages
 // with the navigation sidebar and header.
@@ -48,6 +49,7 @@ function App() {
 
       {/* 2. These routes are now enabled */}
       <Route path="/home" element={withNavLayout(HomeLayout)} />
+      <Route path="/profile" element={withNavLayout(ProfileLayout)} />
       <Route path="/work" element={withNavLayout(WorkLayout)} />
       <Route path="/legal" element={withNavLayout(LegalLayout)} />
       <Route path="/new-job" element={withNavLayout(NewJobLayout)} />
