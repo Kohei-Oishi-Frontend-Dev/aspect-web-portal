@@ -27,44 +27,43 @@ const NavSideBar: React.FC = () => {
   ];
 
   return (
-    <div className="h-full bg-white flex flex-col">
-      {/* Section 1: Logo */}
+    <aside className="h-full bg-white flex flex-col">
+      {/* Logo */}
       <div className="flex justify-center items-center px-4 py-6">
         <img
           src={aspectLogo}
-          alt="Aspect Logo"
+          alt="Aspect"
           className="h-8 w-auto hidden lg:block"
         />
         <img
           src={aspectLogoIcon}
-          alt="Aspect Logo Icon"
-          className="h-8 w-auto lg:hidden bg-primary"
+          alt="Aspect icon"
+          className="h-8 w-auto lg:hidden"
         />
       </div>
 
-      {/* Section 2: Navigation Menu */}
-      <div className="px-2 py-4 flex flex-col items-center">
-        <nav className="flex flex-col gap-4">
+      {/* Menu */}
+      <nav className="px-2 py-4 flex flex-col items-center">
+        <ul className="flex flex-col gap-1 w-full">
           {navMenuItems.map((item) => (
-            <a
-              key={item.name}
-              href={item.path}
-              className="group flex flex-col px-4 py-2 rounded-md hover:bg-gray-50 hover:text-gray-900"
-            >
-              <div className="flex flex-col gap-2 lg:flex-row justify-center lg:justify-start items-center">
-                <span>{item.icon}</span>
-                {item.name}
-              </div>
-            </a>
+            <li key={item.name}>
+              <a
+                href={item.path}
+                className="group flex items-center gap-3 w-full rounded-md px-4 py-2 text-[#1f2937] hover:bg-gray-50 hover:text-gray-900 transition"
+              >
+                <span className="shrink-0">{item.icon}</span>
+                <span className="hidden lg:inline">{item.name}</span>
+              </a>
+            </li>
           ))}
-        </nav>
-      </div>
+        </ul>
+      </nav>
 
-      {/* Section 3: Settings */}
+      {/* Settings cluster pinned to bottom on large screens */}
       <div className="hidden lg:flex flex-col flex-1 justify-end">
         <Settings />
       </div>
-    </div>
+    </aside>
   );
 };
 

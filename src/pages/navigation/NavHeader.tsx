@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom"; // 1. Import Link
+import { Link } from "react-router-dom";
 import MobileSideBar from "./MobileSideBar";
-import navHeaderBackground from "../../assets/navheader-background.jpeg";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   UserIcon,
@@ -13,75 +12,73 @@ import {
 const NavHeader: React.FC = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  const toggleUserMenu = () => {
-    setUserMenuOpen(!userMenuOpen);
-  };
+  const toggleUserMenu = () => setUserMenuOpen((s) => !s);
+  const closeUserMenu = () => setUserMenuOpen(false);
 
-  const closeUserMenu = () => {
-    setUserMenuOpen(false);
-  };
-
-  // Basic logout function
   const handleLogout = () => {
-    sessionStorage.removeItem("authToken");
-    // You may also want to remove other session items
-    window.location.href = "/login"; // Force a full redirect to clear state
+    sessionStorage.clear();
+    window.location.href = "/login";
   };
 
   return (
-    <div
-      className="w-full flex items-center justify-between px-4 bg-cover bg-center bg-no-repeat h-[10vh] md:h-[15vh]"
-      style={{ backgroundImage: `url(${navHeaderBackground})` }}
-    >
-      <span className="text-lg text-accent"></span>
+    <header className="w-full h-16 md:h-16 flex items-center justify-between px-6 md:px-8 relative z-[100]">
+      {/* left spacer for brand in sidebar */}
+      <span />
+
+      {/* mobile: hamburger / side drawer */}
       <div className="lg:hidden">
         <MobileSideBar />
       </div>
-      <div className="hidden lg:flex items-center gap-4">
+
+      {/* right icons */}
+      <div className="hidden lg:flex items-center gap-3">
         <button
-          className="p-2 rounded-full border border-white bg-light-grey"
+          className="p-2 rounded-full border border-transparent hover:bg-gray-100"
           aria-label="Settings"
         >
-          <span className="text-lg">
-            <HugeiconsIcon icon={Settings01Icon} />
-          </span>
+          <HugeiconsIcon icon={Settings01Icon} />
         </button>
+
         <div className="relative">
           <button
             onClick={toggleUserMenu}
-            className="p-2 rounded-full border border-white bg-light-grey"
+            className="p-2 rounded-full border border-transparent hover:bg-gray-100"
             aria-label="Profile"
           >
-            <span className="text-lg">
-              <HugeiconsIcon icon={UserIcon} />
-            </span>
+            <HugeiconsIcon icon={UserIcon} />
           </button>
+
           {userMenuOpen && (
-            <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg z-50">
-              {/* 2. Changed from <a> to <Link> and pointing to /profile */}
-              <Link
-                to="/profile"
-                onClick={closeUserMenu}
-                className="flex items-center justify-start gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-t-md"
-              >
-                <HugeiconsIcon icon={UserSquareIcon} />
-                Profile
-              </Link>
+            <>
+              {/* click-away backdrop */}
               <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-start gap-2 px-4 py-2 text-red-600 hover:bg-gray-100 rounded-b-md"
-              >
-                <HugeiconsIcon icon={SquareUnlock02Icon} />
-                Log-out
-              </button>
-            </div>
+                className="fixed inset-0 z-[100] cursor-default"
+                aria-hidden
+                onClick={closeUserMenu}
+              />
+              {/* dropdown menu */}
+              <div className="absolute right-0 mt-2 w-44 bg-white rounded-md shadow-lg z-[110] overflow-hidden border border-gray-100">
+                <Link
+                  to="/profile"
+                  onClick={closeUserMenu}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-50"
+                >
+                  <HugeiconsIcon icon={UserSquareIcon} />
+                  Profile
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-gray-50"
+                >
+                  <HugeiconsIcon icon={SquareUnlock02Icon} />
+                  Log-out
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
-      {userMenuOpen && (
-        <div className="fixed inset-0 z-40" onClick={closeUserMenu} />
-      )}
-    </div>
+    </header>
   );
 };
 

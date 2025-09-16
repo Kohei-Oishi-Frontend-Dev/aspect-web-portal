@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Edit02Icon, LockIcon } from "@hugeicons/core-free-icons";
 import Button from "../../components/Button";
+import banner from "../../assets/profile_header.jpg";
 
 interface ProfileData {
   contactEmail: string | null;
@@ -23,40 +24,35 @@ interface ProfileData {
   statusCode: number;
 }
 
-/* ---- Figma tokens from your screenshots ---- */
-const BLUE = "#27549D"; // Surface/Default
-const SUBTITLE = "#646F86"; // Greyscale/Text/Subtitle
-const BORDER_SUBTLE = "#DEE8F7"; // Border/Subtle
+const BLUE = "#27549D";
+const SUBTITLE = "#646F86";
+const BORDER_SUBTLE = "#DEE8F7";
 
-/* ---- Card that matches Figma ---- */
+/* Card — Figma-accurate radius/border/shadow */
 const FigmaCard: React.FC<
   React.PropsWithChildren<{ className?: string; onEdit?: () => void }>
 > = ({ className = "", onEdit, children }) => (
   <div
     className={[
-      "relative bg-white rounded-[12px]",
-      "border-[0.5px]",
+      "relative bg-white rounded-[12px] border-[0.5px]",
       "shadow-[0_2px_4px_rgba(50,56,67,0.08)]",
+      "min-h-[172px]",
       className,
     ].join(" ")}
     style={{ borderColor: BORDER_SUBTLE }}
   >
-    {/* content */}
     <div className="p-6">{children}</div>
-
-    {/* edit icon (bottom-right, outlined blue square w/ icon) */}
     <button
       type="button"
       onClick={onEdit}
       aria-label="Edit"
-      className="absolute bottom-4 right-4 h-9 w-9 rounded-lg grid place-items-center border text-[#27549D] border-[#27549D] hover:bg-[#EEF3FB] transition"
+      className="absolute bottom-4 right-4 grid h-9 w-9 place-items-center rounded-lg border text-[#27549D] border-[#27549D] hover:bg-[#EEF3FB] transition"
     >
       <HugeiconsIcon icon={Edit02Icon} className="h-4 w-4" />
     </button>
   </div>
 );
 
-/* One stacked field group: blue label (13/800) then grey value (13/600) */
 const StackField: React.FC<{ label: string; value?: React.ReactNode }> = ({
   label,
   value,
@@ -129,146 +125,145 @@ const ProfileLayout: React.FC = () => {
 
   return (
     <div className="w-full">
-      {/* ---- Hero strip (ignore exact image; align heading like Figma) ---- */}
-      <div className="relative h-44 w-full bg-gradient-to-r from-blue-200/40 to-indigo-200/40">
-        <div className="absolute left-8 bottom-3 flex items-center gap-3">
-          <div className="h-6 w-6 rounded-full bg-[#D3E000]" />
-          <span className="text-[22px] font-extrabold" style={{ color: BLUE }}>
-            Profile
-          </span>
+      {/* Keep hero + cards inside the SAME container for perfect alignment */}
+      <div className="max-w-6xl mx-auto px-6 md:px-8">
+        {/* HERO (non-interactive so dropdowns can sit above) */}
+        <div className="relative w-full h-[198px] overflow-hidden pointer-events-none z-0">
+          <img
+            src={banner}
+            alt="Profile header"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {/* yellow chip aligned with container gutter */}
+          <div className="absolute top-4 left-0 flex items-center gap-2">
+            <span className="h-6 w-6 rounded-full bg-[#D3E000]" />
+            <span className="text-[22px] font-extrabold text-[#D3E000]">
+              Profile
+            </span>
+          </div>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-6 md:px-8 py-6">
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* simple loading blocks */}
-            <div
-              className="h-48 rounded-[12px] bg-white border-[0.5px]"
-              style={{ borderColor: BORDER_SUBTLE }}
-            />
-            <div
-              className="h-48 rounded-[12px] bg-white border-[0.5px]"
-              style={{ borderColor: BORDER_SUBTLE }}
-            />
-            <div
-              className="h-48 rounded-[12px] bg-white border-[0.5px]"
-              style={{ borderColor: BORDER_SUBTLE }}
-            />
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600">{error}</p>
-          </div>
-        ) : profile ? (
-          <>
+        {/* CONTENT area sits in a low layer */}
+        <div className="relative z-0 py-6">
+          {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* NAME CARD — stacked lines exactly like Figma */}
-              <FigmaCard>
-                <div className="space-y-4">
-                  {/* Title inside card (blue 13/bold) */}
-                  <p
-                    className="text-[13px] font-extrabold"
-                    style={{ color: BLUE }}
-                  >
-                    Name
-                  </p>
-
-                  {/* Name value (a tad larger / darker than the 13s) */}
-                  <p className="text-[15px] font-semibold text-gray-900">
-                    {profile.contactName}
-                  </p>
-
-                  {/* Stacked fields: Account ID, Account type */}
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-44 rounded-[12px] bg-white border-[0.5px] animate-pulse"
+                  style={{ borderColor: BORDER_SUBTLE }}
+                />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="py-12 text-center">
+              <p className="text-red-600">{error}</p>
+            </div>
+          ) : profile ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Name / Account */}
+                <FigmaCard>
                   <div className="space-y-4">
-                    <StackField label="Account ID" value={profile.accountId} />
-                    <StackField
-                      label="Account type"
-                      value={profile.accountType}
-                    />
-                  </div>
-                </div>
-              </FigmaCard>
-
-              {/* ADDRESS CARD — title + multiline address lines (stacked) */}
-              <FigmaCard>
-                <div className="space-y-4">
-                  <p
-                    className="text-[13px] font-extrabold"
-                    style={{ color: BLUE }}
-                  >
-                    Account address
-                  </p>
-
-                  <div className="space-y-2">
-                    {/* first line (bold-ish, darker like Figma) */}
-                    <p className="text-[15px] font-semibold text-gray-900">
-                      {profile.addressLine || "—"}
+                    <p
+                      className="text-[13px] font-extrabold"
+                      style={{ color: BLUE }}
+                    >
+                      Name
                     </p>
-                    {/* rest stacked with grey 13/600 */}
-                    {[
-                      profile.addressCity,
-                      profile.addressCounty,
-                      profile.addressPostcode,
-                    ]
-                      .filter(Boolean)
-                      .map((line, i) => (
-                        <p
-                          key={i}
-                          className="text-[13px] font-semibold"
-                          style={{ color: SUBTITLE }}
-                        >
-                          {line}
-                        </p>
-                      ))}
+                    <p className="text-[15px] font-semibold text-gray-900">
+                      {profile.contactName}
+                    </p>
+                    <div className="space-y-4">
+                      <StackField
+                        label="Account ID"
+                        value={profile.accountId}
+                      />
+                      <StackField
+                        label="Account type"
+                        value={profile.accountType}
+                      />
+                    </div>
                   </div>
-                </div>
-              </FigmaCard>
+                </FigmaCard>
 
-              {/* CONTACT DETAILS CARD — stacked like Figma */}
-              <FigmaCard>
-                <div className="space-y-4">
-                  <p
-                    className="text-[13px] font-extrabold"
-                    style={{ color: BLUE }}
-                  >
-                    Contact details
-                  </p>
-
-                  <p className="text-[15px] font-semibold text-gray-900">
-                    {profile.contactName}
-                  </p>
-
+                {/* Address */}
+                <FigmaCard>
                   <div className="space-y-4">
-                    <StackField
-                      label="Phone"
-                      value={profile.contactPhone || "—"}
-                    />
-                    <StackField
-                      label="Email"
-                      value={profile.contactEmail || "—"}
-                    />
+                    <p
+                      className="text-[13px] font-extrabold"
+                      style={{ color: BLUE }}
+                    >
+                      Account address
+                    </p>
+                    <div className="space-y-2">
+                      <p className="text-[15px] font-semibold text-gray-900">
+                        {profile.addressLine || "—"}
+                      </p>
+                      {[
+                        profile.addressCity,
+                        profile.addressCounty,
+                        profile.addressPostcode,
+                      ]
+                        .filter(Boolean)
+                        .map((line, i) => (
+                          <p
+                            key={i}
+                            className="text-[13px] font-semibold"
+                            style={{ color: SUBTITLE }}
+                          >
+                            {line}
+                          </p>
+                        ))}
+                    </div>
                   </div>
-                </div>
-              </FigmaCard>
-            </div>
+                </FigmaCard>
 
-            {/* Login details chip/button */}
-            <div className="mt-6">
-              <Button
-                variant="outline"
-                className="rounded-[12px] border-[0.5px] border-[#27549D] text-[#27549D] hover:bg-[#EEF3FB] px-4 py-2 inline-flex items-center gap-2"
-              >
-                <HugeiconsIcon icon={LockIcon} className="h-4 w-4" />
-                <span className="text-[13px] font-semibold">Login details</span>
-              </Button>
+                {/* Contact */}
+                <FigmaCard>
+                  <div className="space-y-4">
+                    <p
+                      className="text-[13px] font-extrabold"
+                      style={{ color: BLUE }}
+                    >
+                      Contact details
+                    </p>
+                    <p className="text-[15px] font-semibold text-gray-900">
+                      {profile.contactName}
+                    </p>
+                    <div className="space-y-4">
+                      <StackField
+                        label="Phone"
+                        value={profile.contactPhone || "—"}
+                      />
+                      <StackField
+                        label="Email"
+                        value={profile.contactEmail || "—"}
+                      />
+                    </div>
+                  </div>
+                </FigmaCard>
+              </div>
+
+              {/* Login details button */}
+              <div className="mt-6">
+                <Button
+                  variant="outline"
+                  className="inline-flex items-center gap-2 rounded-[12px] border-[0.5px] border-[#27549D] text-[#27549D] hover:bg-[#EEF3FB] px-4 py-2"
+                >
+                  <HugeiconsIcon icon={LockIcon} className="h-4 w-4" />
+                  <span className="text-[13px] font-semibold">
+                    Login details
+                  </span>
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="py-12 text-center">
+              <p className="text-gray-500">No profile data found.</p>
             </div>
-          </>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No profile data found.</p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
