@@ -14,6 +14,3 @@
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
 } 
-
-/* ---------- Error-state autofill override ---------- */
-/* Makes sure autofilled text becomes brown (#812F1D) if inputs are styled as error */

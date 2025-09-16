@@ -27,7 +27,7 @@ const NavSideBar: React.FC = () => {
   ];
 
   return (
-    <aside className="h-full bg-white flex flex-col">
+    <aside className="h-full bg-white flex flex-col shadow">
       {/* Logo */}
       <div className="flex justify-center items-center px-4 py-6">
         <img

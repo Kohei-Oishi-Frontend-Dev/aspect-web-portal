@@ -2,7 +2,10 @@ import React, { useState, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Edit02Icon, LockIcon } from "@hugeicons/core-free-icons";
 import Button from "../../components/Button";
-import banner from "../../assets/profile_header.jpg";
+import banner from "../../assets/7b36db813382101e06e5148a7336319b009ec7b5.jpg";
+import NavHeader from "../navigation/NavHeader";
+import userLogo from "../../assets/User_rectangle_1.svg";
+import SvgIcon from "../../components/SvgIcon";
 
 interface ProfileData {
   contactEmail: string | null;
@@ -126,25 +129,29 @@ const ProfileLayout: React.FC = () => {
   return (
     <div className="w-full">
       {/* Keep hero + cards inside the SAME container for perfect alignment */}
-      <div className="max-w-6xl mx-auto px-6 md:px-8">
+      <div className="">
         {/* HERO (non-interactive so dropdowns can sit above) */}
-        <div className="relative w-full h-[198px] overflow-hidden pointer-events-none z-0">
-          <img
-            src={banner}
-            alt="Profile header"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          {/* yellow chip aligned with container gutter */}
-          <div className="absolute top-4 left-0 flex items-center gap-2">
-            <span className="h-6 w-6 rounded-full bg-[#D3E000]" />
-            <span className="text-[22px] font-extrabold text-[#D3E000]">
+        <div
+          className="relative w-full h-[198px] overflow-hidden z-0 grid grid-cols-2 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${banner})` }}
+          role="img"
+          aria-label="Profile header"
+        >
+          {/* semi-transparent overlay (50% opacity of #27549D) */}
+          <div className="absolute inset-0 pointer-events-none bg-[#27549D]/50" />
+          <div className="p-8 flex items-end">
+            <p className="text-accent text-xl leading-none z-50 flex gap-2 items-center">
+              <SvgIcon svg={userLogo} size={20} className="inline-block text-" />
               Profile
-            </span>
+            </p>
+          </div>
+          <div className="pt-4 pointer-events-auto relative z-[120]">
+            <NavHeader />
           </div>
         </div>
 
         {/* CONTENT area sits in a low layer */}
-        <div className="relative z-0 py-6">
+        <div className="relative z-0 py-6 px-4">
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[0, 1, 2].map((i) => (

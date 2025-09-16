@@ -11,7 +11,6 @@ import {
 
 const NavHeader: React.FC = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-
   const toggleUserMenu = () => setUserMenuOpen((s) => !s);
   const closeUserMenu = () => setUserMenuOpen(false);
 

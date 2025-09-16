@@ -2,12 +2,14 @@ import React from 'react';
 import NavSideBar from './NavSideBar';
 import NavHeader from './NavHeader';
 import MobileMainNav from './MobileMainNav';
+import { useLocation } from 'react-router-dom';
 
 interface NavLayoutProps {
   children: React.ReactNode;
 }
 
 const NavLayout: React.FC<NavLayoutProps> = ({ children }) => {
+  const location = useLocation();
   return (
     <div className="min-h-screen flex">
       {/* NavSideBar - only visible on md+ screens, takes precedence */}
@@ -18,8 +20,7 @@ const NavLayout: React.FC<NavLayoutProps> = ({ children }) => {
       {/* Main content area - includes header and content */}
       <div className="flex-1 flex flex-col">
         {/* NavHeader - spans full width on mobile, but only content area on md+ */}
-        <NavHeader />
-        
+        {location.pathname === "/profile" ? null : <NavHeader />}
         {/* Main content area */}
         <main className="flex-1 flex flex-col">
           {/* Page content */}
