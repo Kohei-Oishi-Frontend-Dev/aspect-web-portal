@@ -20,7 +20,7 @@ const NavHeader: React.FC = () => {
   };
 
   return (
-    <header className="w-full h-16 md:h-16 flex items-center justify-between px-6 md:px-8 relative z-[700]">
+    <header className="w-full h-16 md:h-16 flex items-center justify-between px-6 md:px-8 relative z-[100]">
       {/* left spacer for brand in sidebar */}
       <span />
 
@@ -51,12 +51,12 @@ const NavHeader: React.FC = () => {
             <>
               {/* click-away backdrop */}
               <button
-                className="fixed inset-0 z-[600] cursor-default"
+                className="fixed inset-0 z-[100] cursor-default"
                 aria-hidden
                 onClick={closeUserMenu}
               />
               {/* dropdown menu */}
-              <div className="absolute right-0 mt-2 w-44 bg-white rounded-md shadow-lg z-[600] overflow-hidden border border-gray-100">
+              <div className="absolute right-0 mt-2 w-44 bg-white rounded-md shadow-lg z-[110] overflow-hidden border border-gray-100">
                 <Link
                   to="/profile"
                   onClick={closeUserMenu}
