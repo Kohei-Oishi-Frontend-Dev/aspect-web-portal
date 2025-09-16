@@ -132,7 +132,7 @@ const ProfileLayout: React.FC = () => {
       <div className="">
         {/* HERO (non-interactive so dropdowns can sit above) */}
         <div
-          className="relative w-full h-[198px] overflow-hidden z-0 grid grid-cols-2 bg-cover bg-center bg-no-repeat"
+          className="relative w-full h-[150px] overflow-hidden z-0 grid grid-cols-2 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url(${banner})` }}
           role="img"
           aria-label="Profile header"
