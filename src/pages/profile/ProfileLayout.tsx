@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Edit02Icon, LockIcon } from "@hugeicons/core-free-icons";
 import Button from "../../components/Button";
 import banner from "../../assets/7b36db813382101e06e5148a7336319b009ec7b5.jpg";
 import NavHeader from "../navigation/NavHeader";
 import userLogo from "../../assets/User_rectangle_1.svg";
 import SvgIcon from "../../components/SvgIcon";
+import edit from "../../assets/edit.svg";
+import login_details from "../../assets/login_details.svg";
 
 interface ProfileData {
   contactEmail: string | null;
@@ -31,7 +31,6 @@ const BLUE = "#27549D";
 const SUBTITLE = "#646F86";
 const BORDER_SUBTLE = "#DEE8F7";
 
-/* Card — Figma-accurate radius/border/shadow */
 const FigmaCard: React.FC<
   React.PropsWithChildren<{ className?: string; onEdit?: () => void }>
 > = ({ className = "", onEdit, children }) => (
@@ -39,19 +38,19 @@ const FigmaCard: React.FC<
     className={[
       "relative bg-white rounded-[12px] border-[0.5px]",
       "shadow-[0_2px_4px_rgba(50,56,67,0.08)]",
-      "min-h-[172px]",
+      "w-full md:aspect-square md:max-w-[360px] overflow-hidden",
       className,
     ].join(" ")}
     style={{ borderColor: BORDER_SUBTLE }}
   >
-    <div className="p-6">{children}</div>
+    <div className="p-6 pb-14 h-full">{children}</div>
     <button
       type="button"
       onClick={onEdit}
       aria-label="Edit"
-      className="absolute bottom-4 right-4 grid h-9 w-9 place-items-center rounded-lg border text-[#27549D] border-[#27549D] hover:bg-[#EEF3FB] transition"
+      className="absolute bottom-4 right-4 grid h-9 w-9 place-items-center rounded-lg border border-[#27549D] text-[#27549D] hover:bg-[#EEF3FB] transition"
     >
-      <HugeiconsIcon icon={Edit02Icon} className="h-4 w-4" />
+      <img src={edit} alt="Edit" className="h-5 w-5" />
     </button>
   </div>
 );
@@ -128,20 +127,18 @@ const ProfileLayout: React.FC = () => {
 
   return (
     <div className="w-full">
-      {/* Keep hero + cards inside the SAME container for perfect alignment */}
-      <div className="">
-        {/* HERO (non-interactive so dropdowns can sit above) */}
+      <div>
+        {/* HERO BANNER */}
         <div
-          className="relative w-full h-[198px] overflow-hidden z-0 grid grid-cols-2 bg-cover bg-center bg-no-repeat"
+          className="relative w-full h-[130px] z-10 grid grid-cols-2 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url(${banner})` }}
           role="img"
           aria-label="Profile header"
         >
-          {/* semi-transparent overlay (50% opacity of #27549D) */}
           <div className="absolute inset-0 pointer-events-none bg-[#27549D]/50" />
           <div className="p-8 flex items-end">
             <p className="text-accent text-xl leading-none z-50 flex gap-2 items-center">
-              <SvgIcon svg={userLogo} size={20} className="inline-block text-" />
+              <SvgIcon svg={userLogo} size={20} className="inline-block" />
               Profile
             </p>
           </div>
@@ -150,7 +147,7 @@ const ProfileLayout: React.FC = () => {
           </div>
         </div>
 
-        {/* CONTENT area sits in a low layer */}
+        {/* CONTENT AREA */}
         <div className="relative z-0 py-6 px-4">
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -169,19 +166,12 @@ const ProfileLayout: React.FC = () => {
           ) : profile ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Name / Account */}
-                <FigmaCard>
-                  <div className="space-y-4">
-                    <p
-                      className="text-[13px] font-extrabold"
-                      style={{ color: BLUE }}
-                    >
-                      Name
-                    </p>
-                    <p className="text-[15px] font-semibold text-gray-900">
-                      {profile.contactName}
-                    </p>
-                    <div className="space-y-4">
+                {/* LEFT COLUMN */}
+                <div className="flex flex-col gap-6">
+                  {/* Name / Account Card */}
+                  <FigmaCard>
+                    <div className="space-y-6">
+                      <StackField label="Name" value={profile.contactName} />
                       <StackField
                         label="Account ID"
                         value={profile.accountId}
@@ -191,77 +181,83 @@ const ProfileLayout: React.FC = () => {
                         value={profile.accountType}
                       />
                     </div>
-                  </div>
-                </FigmaCard>
+                  </FigmaCard>
 
-                {/* Address */}
-                <FigmaCard>
-                  <div className="space-y-4">
-                    <p
-                      className="text-[13px] font-extrabold"
-                      style={{ color: BLUE }}
-                    >
-                      Account address
-                    </p>
-                    <div className="space-y-2">
-                      <p className="text-[15px] font-semibold text-gray-900">
-                        {profile.addressLine || "—"}
-                      </p>
-                      {[
-                        profile.addressCity,
-                        profile.addressCounty,
-                        profile.addressPostcode,
-                      ]
-                        .filter(Boolean)
-                        .map((line, i) => (
-                          <p
-                            key={i}
-                            className="text-[13px] font-semibold"
-                            style={{ color: SUBTITLE }}
-                          >
-                            {line}
-                          </p>
-                        ))}
-                    </div>
-                  </div>
-                </FigmaCard>
-
-                {/* Contact */}
-                <FigmaCard>
-                  <div className="space-y-4">
-                    <p
-                      className="text-[13px] font-extrabold"
-                      style={{ color: BLUE }}
-                    >
-                      Contact details
-                    </p>
-                    <p className="text-[15px] font-semibold text-gray-900">
-                      {profile.contactName}
-                    </p>
+                  {/* Contact Details Card */}
+                  <FigmaCard>
                     <div className="space-y-4">
-                      <StackField
-                        label="Phone"
-                        value={profile.contactPhone || "—"}
-                      />
-                      <StackField
-                        label="Email"
-                        value={profile.contactEmail || "—"}
-                      />
+                      <p
+                        className="text-[13px] font-extrabold"
+                        style={{ color: BLUE }}
+                      >
+                        Contact details
+                      </p>
+                      <div>
+                        <p
+                          className="text-[13px] font-semibold"
+                          style={{ color: SUBTITLE }}
+                        >
+                          {profile.contactName}
+                        </p>
+                        <p
+                          className="text-[13px] font-semibold"
+                          style={{ color: SUBTITLE }}
+                        >
+                          {profile.contactPhone || "—"}
+                        </p>
+                        <p
+                          className="text-[13px] font-semibold"
+                          style={{ color: SUBTITLE }}
+                        >
+                          {profile.contactEmail || "—"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </FigmaCard>
+                  </FigmaCard>
+                </div>
+
+                {/* RIGHT COLUMN */}
+                <div className="flex flex-col">
+                  <FigmaCard>
+                    <div className="space-y-4">
+                      <p
+                        className="text-[13px] font-extrabold"
+                        style={{ color: BLUE }}
+                      >
+                        Account address
+                      </p>
+                      <div>
+                        <p
+                          className="text-[13px] font-semibold"
+                          style={{ color: SUBTITLE }}
+                        >
+                          {profile.addressLine || "—"}
+                        </p>
+                        {[
+                          profile.addressCity,
+                          profile.addressCounty,
+                          profile.addressPostcode,
+                        ]
+                          .filter(Boolean)
+                          .map((line, i) => (
+                            <p
+                              key={i}
+                              className="text-[13px] font-semibold"
+                              style={{ color: SUBTITLE }}
+                            >
+                              {line}
+                            </p>
+                          ))}
+                      </div>
+                    </div>
+                  </FigmaCard>
+                </div>
               </div>
 
               {/* Login details button */}
               <div className="mt-6">
-                <Button
-                  variant="outline"
-                  className="inline-flex items-center gap-2 rounded-[12px] border-[0.5px] border-[#27549D] text-[#27549D] hover:bg-[#EEF3FB] px-4 py-2"
-                >
-                  <HugeiconsIcon icon={LockIcon} className="h-4 w-4" />
-                  <span className="text-[13px] font-semibold">
-                    Login details
-                  </span>
+                <Button>
+                  <img src={login_details} alt="Login details" />
                 </Button>
               </div>
             </>

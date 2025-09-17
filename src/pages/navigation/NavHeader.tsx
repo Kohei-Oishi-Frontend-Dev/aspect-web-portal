@@ -2,12 +2,9 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import MobileSideBar from "./MobileSideBar";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  UserIcon,
-  Settings01Icon,
-  SquareUnlock02Icon,
-  UserSquareIcon,
-} from "@hugeicons/core-free-icons";
+import { SquareUnlock02Icon, UserSquareIcon } from "@hugeicons/core-free-icons";
+import settings from "../../assets/settings2.svg";
+import profile from "../../assets/profile.svg";
 
 const NavHeader: React.FC = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -32,19 +29,19 @@ const NavHeader: React.FC = () => {
       {/* right icons */}
       <div className="hidden lg:flex items-center gap-3">
         <button
-          className="p-2 rounded-full border border-transparent hover:bg-gray-100"
+          className="p-2 rounded-full border border-transparent hover:bg-gray-50"
           aria-label="Settings"
         >
-          <HugeiconsIcon icon={Settings01Icon} />
+          <img src={settings} alt="Settings" className="h-10 w-10" />
         </button>
 
         <div className="relative">
           <button
             onClick={toggleUserMenu}
-            className="p-2 rounded-full border border-transparent hover:bg-gray-100"
+            className="p-2 rounded-full z-[100] border border-transparent hover:bg-gray-100"
             aria-label="Profile"
           >
-            <HugeiconsIcon icon={UserIcon} />
+            <img src={profile} alt="Profile" className="h-10 w-10" />
           </button>
 
           {userMenuOpen && (
