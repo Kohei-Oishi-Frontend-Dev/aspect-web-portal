@@ -6,6 +6,8 @@
 
 @theme{
   --color-primary: #27549D;
+  --color-subtle: #DEE8F7;
+  --color-bg-bakground:#F7F9FD;
   --color-background:#f7f9fd;
   --color-secondary: #7099DB;
   --color-accent: #F1FF24;
