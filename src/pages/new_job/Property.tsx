@@ -4,6 +4,8 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase-config";
 import Select from "../../components/Select";
 import { useNewJob } from "./NewJobContext";
+import Button from "../../components/Button";
+import NewLocationModal from "./NewLocationModal";
 
 const Property: React.FC = () => {
   const { jobState, updateJobState } = useNewJob();
@@ -14,6 +16,7 @@ const Property: React.FC = () => {
   >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 3. Use useEffect to fetch data from Firestore when the component mounts
   useEffect(() => {
@@ -49,10 +52,33 @@ const Property: React.FC = () => {
     updateJobState({ selectedProperty: value });
   };
 
+  const handleAddLocationClick = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleSaveNewLocation = (data: {
+    addressLine1: string;
+    addressLine2?: string;
+    townCity?: string;
+    county?: string;
+    postCode?: string;
+  }) => {
+    // Create a temporary id for the newly added location
+    const id = `new-${Date.now()}`;
+    const label = `${data.addressLine1}${
+      data.postCode ? `, ${data.postCode}` : ""
+    }`;
+    const newOption = { value: id, label };
+    // Prepend to options and select the new one
+    setPropertyOptions((prev) => [newOption, ...prev]);
+    updateJobState({ selectedProperty: id });
+    setIsModalOpen(false);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <h2 className="text-xl font-semibold mb-2">Where is your property</h2>
-      <div className="bg-background p-4 rounded-md">
+      <div className="bg-background p-4 rounded-md flex flex-row items-center gap-3">
         {/* 5. Update the Select component to use the new state */}
         <Select
           value={jobState.selectedProperty}
@@ -70,6 +96,21 @@ const Property: React.FC = () => {
         />
         {/* Optional: Display an error message if the fetch fails */}
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+        <div className="">
+          <Button
+            onClick={handleAddLocationClick}
+            variant="primary"
+            size="md"
+          >
+            Add location
+          </Button>
+        </div>
+        {/* New Location Modal */}
+        <NewLocationModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSaveNewLocation}
+        />
       </div>
     </div>
   );
