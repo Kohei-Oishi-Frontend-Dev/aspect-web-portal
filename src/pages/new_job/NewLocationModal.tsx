@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import TextInput from "../../components/TextInput";
 import Button from "../../components/Button";
+import { useAddressSearch } from "../../hooks/useAddressSearch";
+import type { AddressSuggestion } from "../../hooks/useAddressSearch";
 
 interface NewLocationModalProps {
   isOpen: boolean;
@@ -20,70 +22,48 @@ const NewLocationModal: React.FC<NewLocationModalProps> = ({
   onSave,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
   const [townCity, setTownCity] = useState("");
   const [county, setCounty] = useState("");
   const [postCode, setPostCode] = useState("");
 
+  // NEW: local toggle to control visibility of the suggestion list
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  // Ref to ignore the next automatic open after selecting a suggestion
+  const ignoreNextOpenRef = useRef(false);
+
+  const { suggestions } = useAddressSearch(searchQuery);
+
   useEffect(() => {
     if (isOpen) {
       // reset fields when opening
       setSearchQuery("");
-      setSuggestions([]);
       setAddressLine1("");
       setAddressLine2("");
       setTownCity("");
       setCounty("");
       setPostCode("");
+      setShowSuggestions(false);
+      ignoreNextOpenRef.current = false;
     }
   }, [isOpen]);
 
-  // NEW: call Addressy whenever searchQuery changes (debounced + abortable)
+  // Re-open suggestion box when the user types a new non-empty query
   useEffect(() => {
-    if (!isOpen) return; // only run while modal open
-    if (!searchQuery || !searchQuery.trim()) {
-      setSuggestions([]);
+    if (ignoreNextOpenRef.current) {
+      // skip one auto-open caused by programmatic setSearchQuery from a click
+      ignoreNextOpenRef.current = false;
+      setShowSuggestions(false);
       return;
     }
 
-    const controller = new AbortController();
-    const timeout = window.setTimeout(async () => {
-      try {
-        const params = new URLSearchParams({
-          Key: "JJ18-CG38-MK69-DA98",
-          Text: searchQuery.trim(),
-        });
-        const url = `https://api.addressy.com/Capture/Interactive/Find/v1.10/json6.ws?${params.toString()}`;
-
-        const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) {
-          console.error("Address lookup failed", res.status);
-          setSuggestions([]);
-          return;
-        }
-        const data = await res.json();
-        // Extract array (API may use Items / Results / Places)
-        const items = data?.Items ?? data?.Results ?? data?.Places ?? [];
-        // Map each element to its 'text' key (fall back to 'Text' if needed)
-        const texts: string[] = items
-          .map((it: any) => it?.text ?? it?.Text ?? null)
-          .filter(Boolean);
-        console.log("Addressy suggestions:", texts);
-        setSuggestions(texts);
-      } catch (err: any) {
-        if (err.name === "AbortError") return;
-        console.error("Address lookup error:", err);
-        setSuggestions([]);
-      }
-    }, 300); // debounce 300ms
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timeout);
-    };
-  }, [searchQuery, isOpen]);
+    if (searchQuery && searchQuery.trim().length > 0) {
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  }, [searchQuery]);
 
   if (!isOpen) return null;
 
@@ -91,10 +71,46 @@ const NewLocationModal: React.FC<NewLocationModalProps> = ({
     if (e.target === e.currentTarget) onClose();
   };
 
-  const handleSuggestionClick = (value: string) => {
-    setAddressLine1(value);
-    setSearchQuery(value);
-    setSuggestions([]);
+  // split suggestion into address parts:
+  const splitLocation = (text: string, description?: string) => {
+    const addressLine1 = text || "";
+    let addressLine2 = "";
+    let postCode = "";
+
+    if (description) {
+      // split by space and trim
+      const parts = description
+        .split(" ")
+        .map((p) => p.trim())
+      console.log(parts);
+      console.log(parts.length);
+      if (parts.length >= 2) {
+        // last two items => postcode
+        const lastTwo = parts.slice(-2);
+        postCode = lastTwo.join(" ");
+        // remaining items => addressLine2
+        addressLine2 = parts.slice(0, -2).join(", ");
+      } else if (parts.length === 1) {
+        // single item => postcode
+        postCode = parts[0];
+      }
+    }
+
+    return { addressLine1, addressLine2, postCode };
+  };
+
+  const handleSuggestionClick = (suggestion: AddressSuggestion) => {
+    // prevent the searchQuery effect from immediately re-opening suggestions
+    ignoreNextOpenRef.current = true;
+    const { addressLine1: a1, addressLine2: a2, postCode: pc } = splitLocation(
+      suggestion.text,
+      suggestion.description
+    );
+    setAddressLine1(a1);
+    setAddressLine2(a2);
+    setPostCode(pc);
+    setSearchQuery(suggestion.text);
+    setShowSuggestions(false);
   };
 
   const handleSave = () => {
@@ -116,9 +132,9 @@ const NewLocationModal: React.FC<NewLocationModalProps> = ({
       {/* backdrop */}
       <div className="absolute inset-0 bg-black/40" />
 
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 z-10">
+      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 z-10 p-6">
         {/* header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4">
           <h3 className="text-lg font-medium">Add new location</h3>
           <button
             onClick={onClose}
@@ -130,7 +146,7 @@ const NewLocationModal: React.FC<NewLocationModalProps> = ({
         </div>
 
         {/* body */}
-        <div className="p-8 space-y-3">
+        <div className="w-full p-3">
           {/* Search input */}
           <div className="relative">
             <TextInput
@@ -141,16 +157,18 @@ const NewLocationModal: React.FC<NewLocationModalProps> = ({
               className="mb-1"
               name="addressSearch"
             />
-            {suggestions.length > 0 && (
+            {showSuggestions && suggestions.length > 0 && (
               <div className="absolute left-0 right-0 bg-white border border-gray-200 rounded-md mt-1 max-h-48 overflow-auto z-20">
-                {suggestions.map((s, i) => (
+                {suggestions.map((s) => (
                   <button
-                    key={`${s}-${i}`}
+                    key={s.id}
                     type="button"
                     onClick={() => handleSuggestionClick(s)}
                     className="w-full text-left px-3 py-2 hover:bg-gray-100"
                   >
-                    {s}
+                    <div className="flex flex-col">
+                      <span className="text-sm text-gray-900">{s.text}</span>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -189,9 +207,8 @@ const NewLocationModal: React.FC<NewLocationModalProps> = ({
             placeholder="e.g. SW1A 1AA"
           />
         </div>
-
         {/* footer */}
-        <div className="flex justify-end gap-3 p-4 border-t">
+        <div className="flex justify-end gap-3 p-4">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
