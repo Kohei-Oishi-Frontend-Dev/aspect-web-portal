@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run from Source
+name: Build & Deploy to Cloud Run
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
   SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -21,23 +21,35 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
-      - id: 'auth'
-        name: 'Authenticate to Google Cloud using Workload Identity Federation'
-        uses: 'google-github-actions/auth@v2'
+
+      - id: auth
+        name: Authenticate to Google Cloud using Workload Identity Federation
+        uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
-      
-      - name: Deploy to Cloud Run (build from source)
-        id: deploy
-        uses: 'google-github-actions/deploy-cloudrun@v2'
+
+      - name: Configure gcloud project
+        run: |
+          gcloud config set project ${{ env.PROJECT_ID }}
+          gcloud config set run/region ${{ env.REGION }}
+
+      - name: Configure Docker to use gcloud credential helper
+        run: gcloud auth configure-docker --quiet
+
+      - name: Set image name
+        run: echo "IMAGE=gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }}" >> $GITHUB_ENV
+
+      - name: Set up QEMU and buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
         with:
-          service: ${{ env.SERVICE }}
-          region: ${{ env.REGION }}
-          source: ./
-          flags: '--port=8080 --allow-unauthenticated'
-          env_vars: |
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}
+          build-args: |
             VITE_LOGIN_API_URL=${{ secrets.VITE_LOGIN_API_URL }}
             VITE_AUTH_URL=${{ secrets.VITE_AUTH_URL }}
             VITE_CLIENT_ID=${{ secrets.VITE_CLIENT_ID }}
@@ -47,7 +59,17 @@ jobs:
             VITE_BACKEND_BASE_URL=${{ secrets.VITE_BACKEND_BASE_URL }}
             VITE_ADDRESSY_API_KEY=${{ secrets.VITE_ADDRESSY_API_KEY }}
             VITE_ADDRESSY_BASE_URL=${{ secrets.VITE_ADDRESSY_BASE_URL }}
-      
+
+      - name: Deploy to Cloud Run (using built image)
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          project: ${{ env.PROJECT_ID }}
+          service: ${{ env.SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.IMAGE }}
+          flags: --allow-unauthenticated
+
       - name: Show deployment URL
         run: |
           echo "Deployment URL: ${{ steps.deploy.outputs.url }}"
