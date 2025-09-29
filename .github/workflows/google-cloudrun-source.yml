@@ -1,34 +1,29 @@
 name: Deploy to Cloud Run from Source
-
 on:
   push:
     branches:
       - main
-
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.GCP_REGION }}
   SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       id-token: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
+      
       - id: 'auth'
         name: 'Authenticate to Google Cloud using Workload Identity Federation'
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
-
+      
       - name: Deploy to Cloud Run (build from source)
         id: deploy
         uses: 'google-github-actions/deploy-cloudrun@v2'
@@ -37,7 +32,17 @@ jobs:
           region: ${{ env.REGION }}
           source: ./
           flags: '--port=8080 --allow-unauthenticated'
-
+        env:
+          VITE_LOGIN_API_URL: ${{ secrets.VITE_LOGIN_API_URL }}
+          VITE_AUTH_URL: ${{ secrets.VITE_AUTH_URL }}
+          VITE_CLIENT_ID: ${{ secrets.VITE_CLIENT_ID }}
+          VITE_CLIENT_SECRET: ${{ secrets.VITE_CLIENT_SECRET }}
+          VITE_FORGOT_PASSWORD_URL: ${{ secrets.VITE_FORGOT_PASSWORD_URL }}
+          VITE_ProfileAPI_URL: ${{ secrets.VITE_ProfileAPI_URL }}
+          VITE_BACKEND_BASE_URL: ${{ secrets.VITE_BACKEND_BASE_URL }}
+          VITE_ADDRESSY_API_KEY: ${{ secrets.VITE_ADDRESSY_API_KEY }}
+          VITE_ADDRESSY_BASE_URL: ${{ secrets.VITE_ADDRESSY_BASE_URL }}
+      
       - name: Show deployment URL
         run: |
           echo "Deployment URL: ${{ steps.deploy.outputs.url }}"
