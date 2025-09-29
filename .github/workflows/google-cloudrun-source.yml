@@ -37,16 +37,16 @@ jobs:
           region: ${{ env.REGION }}
           source: ./
           flags: '--port=8080 --allow-unauthenticated'
-        env:
-          VITE_LOGIN_API_URL: ${{ secrets.VITE_LOGIN_API_URL }}
-          VITE_AUTH_URL: ${{ secrets.VITE_AUTH_URL }}
-          VITE_CLIENT_ID: ${{ secrets.VITE_CLIENT_ID }}
-          VITE_CLIENT_SECRET: ${{ secrets.VITE_CLIENT_SECRET }}
-          VITE_FORGOT_PASSWORD_URL: ${{ secrets.VITE_FORGOT_PASSWORD_URL }}
-          VITE_PROFILEAPI_URL: ${{ secrets.VITE_PROFILEAPI_URL }}
-          VITE_BACKEND_BASE_URL: ${{ secrets.VITE_BACKEND_BASE_URL }}
-          VITE_ADDRESSY_API_KEY: ${{ secrets.VITE_ADDRESSY_API_KEY }}
-          VITE_ADDRESSY_BASE_URL: ${{ secrets.VITE_ADDRESSY_BASE_URL }}
+          env_vars: |
+            VITE_LOGIN_API_URL=${{ secrets.VITE_LOGIN_API_URL }}
+            VITE_AUTH_URL=${{ secrets.VITE_AUTH_URL }}
+            VITE_CLIENT_ID=${{ secrets.VITE_CLIENT_ID }}
+            VITE_CLIENT_SECRET=${{ secrets.VITE_CLIENT_SECRET }}
+            VITE_FORGOT_PASSWORD_URL=${{ secrets.VITE_FORGOT_PASSWORD_URL }}
+            VITE_PROFILEAPI_URL=${{ secrets.VITE_PROFILEAPI_URL }}
+            VITE_BACKEND_BASE_URL=${{ secrets.VITE_BACKEND_BASE_URL }}
+            VITE_ADDRESSY_API_KEY=${{ secrets.VITE_ADDRESSY_API_KEY }}
+            VITE_ADDRESSY_BASE_URL=${{ secrets.VITE_ADDRESSY_BASE_URL }}
       
       - name: Show deployment URL
         run: |
