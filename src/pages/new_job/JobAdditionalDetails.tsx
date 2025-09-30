@@ -16,47 +16,22 @@ const JobAdditionalDetails: React.FC = () => {
 
   // receives File[] from ImageUploader and uploads to Azure using fetch + SAS URL
   const handleImagesSelected = async (files: File[]) => {
-    if (!files || files.length === 0) return;
-    setUploading(true);
-    setError(null);
-
     const uploadedUrls: string[] = [];
-    try {
-      for (const file of files) {
-        // 1) ask backend for SAS upload URL + final fileUrl
-        const { sasUrl, fileUrl } = await StorageService.createUpload(
-          file.name,
-          file.type
-        );
+    for (const file of files) {
+      // 1) Request SAS + canonical fileUrl from backend
+      const { sasUrl, fileUrl } = await StorageService.createUpload(file.name, file.type);
 
-        // 2) upload to Azure using fetch (PUT). No XHR used.
-        const res = await fetch(sasUrl, {
-          method: "PUT",
-          headers: {
-            "x-ms-blob-type": "BlockBlob",
-            "Content-Type": file.type || "application/octet-stream",
-          },
-          body: file,
-        });
+      // 2) Upload bytes directly to SAS URL
+      await StorageService.uploadToSas(sasUrl, file);
 
-        if (!res.ok) {
-          throw new Error(
-            `Upload failed for ${file.name}: ${res.status} ${res.statusText}`
-          );
-        }
+      // 3) Optionally notify backend to link to record
+      // await StorageService.linkFile(jobState.selectedProperty || null, fileUrl);
 
-        // 3) collect final fileUrl (backend-provided canonical URL)
-        uploadedUrls.push(fileUrl);
-      }
-
-      // 4) update JobState.images (append new URLs)
-      updateJobState({ images: [...(jobState.images || []), ...uploadedUrls] });
-    } catch (err: any) {
-      console.error("Upload error:", err);
-      setError(err?.message ?? "Upload failed");
-    } finally {
-      setUploading(false);
+      uploadedUrls.push(fileUrl);
     }
+
+    // 4) Save URLs to JobState.images
+    updateJobState({ images: [...(jobState.images || []), ...uploadedUrls] });
   };
 
   return (
