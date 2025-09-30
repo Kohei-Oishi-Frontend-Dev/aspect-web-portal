@@ -1,40 +1,21 @@
-# Stage 1 — build
-FROM node:20-alpine AS builder
+# Use Debian-based Node image to avoid musl issues
+FROM node:20
+
+# Set working directory
 WORKDIR /app
 
-# Declare build arguments
-ARG VITE_LOGIN_API_URL
-ARG VITE_AUTH_URL
-ARG VITE_CLIENT_ID
-ARG VITE_CLIENT_SECRET
-ARG VITE_FORGOT_PASSWORD_URL
-ARG VITE_PROFILEAPI_URL
-ARG VITE_BACKEND_BASE_URL
-ARG VITE_ADDRESSY_API_KEY
-ARG VITE_ADDRESSY_BASE_URL
-
-# Set as environment variables
-ENV VITE_LOGIN_API_URL=$VITE_LOGIN_API_URL
-ENV VITE_AUTH_URL=$VITE_AUTH_URL
-ENV VITE_CLIENT_ID=$VITE_CLIENT_ID
-ENV VITE_CLIENT_SECRET=$VITE_CLIENT_SECRET
-ENV VITE_FORGOT_PASSWORD_URL=$VITE_FORGOT_PASSWORD_URL
-ENV VITE_PROFILEAPI_URL=$VITE_PROFILEAPI_URL
-ENV VITE_BACKEND_BASE_URL=$VITE_BACKEND_BASE_URL
-ENV VITE_ADDRESSY_API_KEY=$VITE_ADDRESSY_API_KEY
-ENV VITE_ADDRESSY_BASE_URL=$VITE_ADDRESSY_BASE_URL
-
-COPY package.json package-lock.json ./
+# Copy package files and install dependencies
+COPY package*.json ./
 RUN npm ci
 
+# Copy the rest of the project
 COPY . .
+
+# Build the project
 RUN npm run build
 
-# Stage 2 — serve with nginx
-FROM nginx:stable-alpine
-RUN rm -rf /usr/share/nginx/html/*
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Expose Vite preview port
+EXPOSE 4173
 
-EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+# Run the preview server
+CMD ["npm", "run", "preview"]
