@@ -26,7 +26,7 @@ ENV VITE_LOGIN_API_URL=$VITE_LOGIN_API_URL \
     VITE_ADDRESSY_BASE_URL=$VITE_ADDRESSY_BASE_URL
 
 # Copy package files
-COPY package*.json ./
+COPY package.json ./
 
 # Install dependencies - use npm install instead of npm ci
 RUN npm install
