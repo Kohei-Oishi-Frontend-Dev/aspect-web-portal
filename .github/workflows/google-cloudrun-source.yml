@@ -8,11 +8,12 @@ on:
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.GCP_REGION }}
-  SERVICE: my-vite-app-${{ github.run_id }}
+  SERVICE: aspect-web-portal
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: .env
     permissions:
       contents: read
       id-token: write
