@@ -1,5 +1,5 @@
 # Stage 1: Build the app
-FROM node:20 AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -28,13 +28,13 @@ ENV VITE_LOGIN_API_URL=$VITE_LOGIN_API_URL \
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies - use npm install instead of npm ci
+RUN npm install
 
 # Copy source code
 COPY . .
 
-# Build app (Vite will now have access to the ENV variables)
+# Build app
 RUN npm run build
 
 # Stage 2: Serve app using Nginx
