@@ -1,21 +1,25 @@
-# Use Debian-based Node image to avoid musl issues
-FROM node:20
+# Stage 1: Build the app
+FROM node:20 AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm ci
 
-# Copy the rest of the project
+# Copy source code
 COPY . .
 
-# Build the project
+# Build app
 RUN npm run build
 
-# Expose Vite preview port
-EXPOSE 4173
+# Stage 2: Serve app using Nginx
+FROM nginx:alpine
 
-# Run the preview server
-CMD ["npm", "run", "preview"]
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 8080
+
+CMD ["nginx", "-g", "daemon off;"]
