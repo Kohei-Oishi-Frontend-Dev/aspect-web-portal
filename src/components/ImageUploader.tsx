@@ -36,11 +36,13 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   useEffect(() => {
     const handleFileAdded = (_file: any) => {
       // File added to Uppy
+      console.log("File added:", _file);
     };
 
     const handleComplete = (result: any) => {
       const files = result.successful.map((file: any) => file.data);
       onImagesSelected?.(files);
+      console.log("Upload complete! Files:", files);
     };
 
     uppy.on("file-added", handleFileAdded);
