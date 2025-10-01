@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from "react";
-// 1. Import Firestore functions and the database instance
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../../firebase-config";
+// 1. Firebase imports have been removed.
 import Select from "../../components/Select";
 import { useNewJob } from "./NewJobContext";
+
+// Interface for the raw site data from your Salesforce API
+interface ApiSite {
+  Id: string;
+  Site_Street__c: string;
+  Site_PostalCode__c: string;
+}
 import Button from "../../components/Button";
 import NewLocationModal from "./NewLocationModal";
 
 const Property: React.FC = () => {
   const { jobState, updateJobState } = useNewJob();
 
-  // 2. Set up state to hold the properties, loading status, and any errors
+  // 2. State for properties, loading, and error remains the same.
   const [propertyOptions, setPropertyOptions] = useState<
     { value: string; label: string }[]
   >([]);
@@ -18,30 +23,56 @@ const Property: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // 3. Use useEffect to fetch data from Firestore when the component mounts
+  // 3. useEffect has been updated to fetch from your live API.
   useEffect(() => {
     const fetchProperties = async () => {
-      try {
-        const sitesCollectionRef = collection(db, "sites");
-        const querySnapshot = await getDocs(sitesCollectionRef);
+      // Get authentication details from the browser's session storage
+      const authToken = sessionStorage.getItem("authToken");
+      const accountId =
+        sessionStorage.getItem("currentAccountId") ||
+        sessionStorage.getItem("accountId");
 
-        // 4. Map the fetched documents into the { value, label } format
-        const properties = querySnapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            value: doc.id, // Use the unique document ID as the value
-            // Combine street and postal code for a user-friendly label
-            label: `${data.Site_Street__c}, ${data.Site_PostalCode__c}`,
-          };
-        });
+      if (!authToken || !accountId) {
+        setError("Your session is invalid. Please log in again.");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          // Use the proxy path for your sites API
+          `/sites-api/services/apexrest/portal/api/v1/sites?currentAccountId=${accountId}`,
+          { headers: { Authorization: `Bearer ${authToken}` } }
+        );
+
+        if (response.status === 401) {
+          sessionStorage.clear();
+          window.location.href = "/login";
+          return;
+        }
+
+        const apiResponse = await response.json();
+
+        if (!response.ok || !apiResponse.success) {
+          throw new Error(apiResponse.message || "Failed to fetch sites.");
+        }
+
+        const rawSites: ApiSite[] = apiResponse.data || [];
+
+        // 4. Map the fetched API data into the { value, label } format
+        const properties = rawSites.map((site) => ({
+          value: site.Id, // Use the unique record ID as the value
+          // Combine street and postal code for a user-friendly label
+          label: `${site.Site_Street__c}, ${site.Site_PostalCode__c}`,
+        }));
 
         setPropertyOptions(properties);
-        setError(null); // Clear any previous errors
-      } catch (err) {
+        setError(null);
+      } catch (err: any) {
         console.error("Error fetching sites:", err);
         setError("Failed to load properties. Please try again.");
       } finally {
-        setIsLoading(false); // Stop the loading indicator
+        setIsLoading(false);
       }
     };
 
@@ -92,9 +123,8 @@ const Property: React.FC = () => {
               : "Select from saved list of properties"
           }
           required
-          disabled={isLoading || !!error} // Disable if loading or if there's an error
+          disabled={isLoading || !!error}
         />
-        {/* Optional: Display an error message if the fetch fails */}
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
         <div className="">
           <Button

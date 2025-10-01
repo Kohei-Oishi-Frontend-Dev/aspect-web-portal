@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Sorting05Icon,
@@ -7,78 +7,18 @@ import {
 } from "@hugeicons/core-free-icons";
 import Button from "../../components/Button";
 
-// A placeholder type for our report data
+// --- Report type based on API response ---
 interface Report {
-  id: string;
-  name: string;
-  job: string;
-  appointment: string;
+  reportUrl: string | null;
+  Status: string;
+  upload: string;
   location: string;
-  date: string;
+  appointment: string;
+  jobId: string;
+  name: string;
 }
 
-// Hardcoded data based on your Figma design
-const mockReports: Report[] = [
-  {
-    id: "1",
-    name: "Dump report",
-    job: "#45692",
-    appointment: "Aug 07, 2025",
-    location: "Chelmsford",
-    date: "Aug 07, 2025",
-  },
-  {
-    id: "2",
-    name: "Leak report",
-    job: "#45697",
-    appointment: "Aug 07, 2025",
-    location: "Graysbrook",
-    date: "Aug 07, 2025",
-  },
-  {
-    id: "3",
-    name: "Leak report",
-    job: "#45697",
-    appointment: "Aug 07, 2025",
-    location: "Graysbrook",
-    date: "Aug 07, 2025",
-  },
-  {
-    id: "4",
-    name: "Leak report",
-    job: "#45697",
-    appointment: "Aug 07, 2025",
-    location: "Graysbrook",
-    date: "Aug 07, 2025",
-  },
-  {
-    id: "5",
-    name: "Leak report",
-    job: "#45697",
-    appointment: "Aug 07, 2025",
-    location: "Graysbrook",
-    date: "Aug 07, 2025",
-  },
-  {
-    id: "6",
-    name: "Leak report",
-    job: "#45697",
-    appointment: "Aug 07, 2025",
-    location: "Graysbrook",
-    date: "Aug 07, 2025",
-  },
-  {
-    id: "7",
-    name: "Leak report",
-    job: "#45697",
-    appointment: "Aug 07, 2025",
-    location: "Graysbrook",
-    date: "Aug 07, 2025",
-  },
-];
-
-// --- 1. ACTION DROPDOWN COMPONENT ---
-// This is a new sub-component to handle the dropdown menu for each report
+// --- ACTION DROPDOWN COMPONENT ---
 interface ActionDropdownProps {
   reportId: string;
   isOpen: boolean;
@@ -98,7 +38,7 @@ const ActionDropdown: React.FC<ActionDropdownProps> = ({
     <div className="relative">
       <button
         onClick={(e) => {
-          e.stopPropagation(); // Prevent click from bubbling up to the main div
+          e.stopPropagation();
           onToggle(reportId);
         }}
         className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
@@ -129,30 +69,111 @@ const ActionDropdown: React.FC<ActionDropdownProps> = ({
 };
 
 const ReportsLayout: React.FC = () => {
-  const [reports] = useState<Report[]>(mockReports);
-  // --- 2. STATE TO MANAGE OPEN DROPDOWN ---
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  // === NEW: Pagination State ===
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // You can change this value
 
   const toggleDropdown = (reportId: string) => {
     setOpenDropdown(openDropdown === reportId ? null : reportId);
   };
 
-  const closeDropdown = () => {
-    setOpenDropdown(null);
-  };
+  const closeDropdown = () => setOpenDropdown(null);
 
-  // Placeholder functions for actions
   const handleView = (reportId: string) => {
     console.log(`Viewing report: ${reportId}`);
     closeDropdown();
   };
+
   const handleDownload = (reportId: string) => {
     console.log(`Downloading report: ${reportId}`);
     closeDropdown();
   };
 
+  const getStatusBadge = (status: string) => {
+    const lowerCaseStatus = status?.toLowerCase();
+    let badgeClasses = "bg-gray-100 text-gray-800"; // Default
+
+    if (lowerCaseStatus === "completed") {
+      badgeClasses = "bg-green-100 text-green-800";
+    } else if (lowerCaseStatus === "scheduled") {
+      badgeClasses = "bg-blue-100 text-blue-800";
+    }
+
+    return (
+      <span
+        className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${badgeClasses}`}
+      >
+        {status}
+      </span>
+    );
+  };
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      // ... existing fetch logic ...
+      const authToken = sessionStorage.getItem("authToken");
+      const currentAccountId =
+        sessionStorage.getItem("currentAccountId") ||
+        sessionStorage.getItem("accountId");
+
+      if (!authToken || !currentAccountId) {
+        setError("You are not logged in or account ID is missing.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/reports-api/services/apexrest/portal/api/v1/reports?currentAccountId=${currentAccountId}`,
+          { headers: { Authorization: `Bearer ${authToken}` } }
+        );
+
+        if (response.status === 401) {
+          sessionStorage.clear();
+          window.location.href = "/login";
+          return;
+        }
+
+        const text = await response.text();
+        console.log("Raw reports response:", text);
+
+        let parsed: any;
+        try {
+          parsed = JSON.parse(text);
+        } catch (err) {
+          throw new Error("Invalid JSON from API");
+        }
+
+        if (Array.isArray(parsed)) {
+          setReports(parsed);
+        } else if (parsed.data && Array.isArray(parsed.data)) {
+          setReports(parsed.data);
+        } else {
+          throw new Error("Unexpected API response shape");
+        }
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, []);
+
+  // === NEW: Pagination Calculations ===
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentReports = reports.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(reports.length / itemsPerPage);
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
   return (
-    // Add an onClick handler to the main container to close the dropdown
     <div
       className="p-4 md:p-6 bg-background min-h-full"
       onClick={closeDropdown}
@@ -174,102 +195,116 @@ const ReportsLayout: React.FC = () => {
         </div>
 
         {/* Table Section */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Name
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Job
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Appointment
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Location
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Date
-                </th>
-                {/* --- 3. NEW HEADER FOR ACTIONS COLUMN --- */}
-                <th scope="col" className="relative px-6 py-3">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {reports.map((report) => (
-                <tr key={report.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer hover:underline">
-                    {report.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {report.job}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {report.appointment}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {report.location}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {report.date}
-                  </td>
-                  {/* --- 4. NEW CELL FOR THE ACTION DROPDOWN --- */}
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <ActionDropdown
-                      reportId={report.id}
-                      isOpen={openDropdown === report.id}
-                      onToggle={toggleDropdown}
-                      onView={handleView}
-                      onDownload={handleDownload}
-                    />
-                  </td>
+        {loading ? (
+          <p className="text-gray-500">Loading reports...</p>
+        ) : error ? (
+          <p className="text-red-600">{error}</p>
+        ) : reports.length === 0 ? (
+          <p className="text-gray-500">No reports found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Job ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Appointment
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Upload
+                  </th>
+                  <th className="relative px-6 py-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {/* === MODIFIED: Map over currentReports === */}
+                {currentReports.map((report, index) => (
+                  <tr key={report.jobId || index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer hover:underline">
+                      {report.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {report.jobId}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {report.appointment
+                        ? new Date(report.appointment).toLocaleString()
+                        : "—"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {report.location || "—"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(report.Status)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {report.upload
+                        ? new Date(report.upload).toLocaleString()
+                        : "—"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <ActionDropdown
+                        reportId={report.jobId}
+                        isOpen={openDropdown === report.jobId}
+                        onToggle={toggleDropdown}
+                        onView={handleView}
+                        onDownload={handleDownload}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        {/* Pagination Section */}
-        <div className="flex justify-between items-center mt-6">
-          <div>
+        {/* === NEW: Pagination Controls === */}
+        {totalPages > 1 && !loading && !error && (
+          <div className="flex justify-between items-center pt-4 mt-4 border-t border-gray-200">
             <p className="text-sm text-gray-600">
-              Showing <span className="font-medium">1</span> to{" "}
-              <span className="font-medium">{reports.length}</span> of{" "}
-              <span className="font-medium">{reports.length}</span> results
+              Showing{" "}
+              <span className="font-medium">{indexOfFirstItem + 1}</span> to{" "}
+              <span className="font-medium">
+                {Math.min(indexOfLastItem, reports.length)}
+              </span>{" "}
+              of <span className="font-medium">{reports.length}</span> reports
             </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                variant="outline"
+                size="sm"
+              >
+                Previous
+              </Button>
+              <Button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                variant="outline"
+                size="sm"
+              >
+                Next
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              &lt; Prev
-            </Button>
-            <Button variant="outline" size="sm">
-              Next &gt;
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* --- 5. OVERLAY (optional but good practice) --- */}
-      {/* This invisible layer helps close the dropdown when clicking anywhere else on the page */}
+      {/* Overlay to close dropdown */}
       {openDropdown && (
         <div className="fixed inset-0 z-10" onClick={closeDropdown} />
       )}

@@ -30,8 +30,8 @@ const Login: React.FC = () => {
 
   const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
   const CLIENT_SECRET = import.meta.env.VITE_CLIENT_SECRET;
-  const AUTH_URL_PROXY = "/auth-api/services/oauth2/token";
-  const LOGIN_API_URL_PROXY = "/api/services/apexrest/UserLogin";
+  // const AUTH_URL_PROXY = "/auth-api/services/oauth2/token";
+  const LOGIN_API_URL_PROXY = "/api/services/apexrest/portal/api/v1/userlogin";
 
   const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
@@ -74,22 +74,22 @@ const Login: React.FC = () => {
 
     try {
       // 1) OAuth
-      const tokenResponse = await fetch(AUTH_URL_PROXY, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "client_credentials",
-          client_id: CLIENT_ID!,
-          client_secret: CLIENT_SECRET!,
-        }),
-      });
-      const tokenData = await tokenResponse.json();
-      if (!tokenResponse.ok || !tokenData?.access_token) {
-        throw new Error(
-          tokenData?.error_description || "Could not authenticate application."
-        );
-      }
-      const accessToken = tokenData.access_token;
+      // const tokenResponse = await fetch(AUTH_URL_PROXY, {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      //   body: new URLSearchParams({
+      //     grant_type: "client_credentials",
+      //     client_id: CLIENT_ID!,
+      //     client_secret: CLIENT_SECRET!,
+      //   }),
+      // });
+      // const tokenData = await tokenResponse.json();
+      // if (!tokenResponse.ok || !tokenData?.access_token) {
+      //   throw new Error(
+      //     tokenData?.error_description || "Could not authenticate application."
+      //   );
+      // }
+      // const accessToken = tokenData.access_token;
 
       // 2) Login
       const loginResponse = await fetch(LOGIN_API_URL_PROXY, {
