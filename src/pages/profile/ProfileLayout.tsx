@@ -103,6 +103,8 @@ const ProfileLayout: React.FC = () => {
           }
         );
 
+        console.log(response);
+
         if (response.status === 401) {
           sessionStorage.clear();
           window.location.href = "/login";

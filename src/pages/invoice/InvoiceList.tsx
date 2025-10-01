@@ -1,591 +1,355 @@
 import React, { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../../firebase-config";
 import Button from "../../components/Button";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  FilterIcon,
-  Sorting05Icon,
-  Download05Icon,
-  MoreVerticalIcon,
-  CheckmarkCircle02Icon,
-  AlertCircleIcon,
-  ArrowUp01Icon,
-  ArrowDown01Icon,
-} from "@hugeicons/core-free-icons";
-import CreditCardChoiceModal from "./CreditCardChoiceModal";
+import banner from "../../assets/7b36db813382101e06e5148a7336319b009ec7b5.jpg";
+import NavHeader from "../navigation/NavHeader";
 
-// --- Interfaces for data types ---
-interface Invoice {
-  id: string;
-  number: string;
-  jobRef: string;
-  date: string;
-  amount: number;
-  status: "Paid" | "Outstanding" | string; // Allow for other statuses
-  due: number;
+// ====== Interfaces ======
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T[];
 }
 
-interface CreditNote {
-  id: string;
-  number: string;
-  invoiceNumber: string;
-  jobRef: string;
-  date: string;
-  amount: number;
-}
+// ====== Colors ======
+const BLUE = "#27549D";
+const SUBTITLE = "#646F86";
+const BORDER_SUBTLE = "#DEE8F7";
 
-// --- Dropdown Component ---
-interface ActionDropdownProps {
-  itemId: string;
-  itemType: "invoice" | "creditNote";
-  status?: string;
-  isOpen: boolean;
-  onToggle: (itemId: string) => void;
-  onView: (itemId: string) => void;
-  onPay: (itemId: string) => void;
-}
+// ====== Column Name Mapping ======
+const fieldNameMap: Record<string, string> = {
+  Account__c: "Account",
+  Account_Details__c: "Account Details",
+  Account_Sector__c: "Account Sector",
+  Account_Type__c: "Account Type",
+  Job_Type__c: "Job Type",
+  Name: "Name",
+};
 
-const ActionDropdown: React.FC<ActionDropdownProps> = ({
-  itemId,
-  itemType,
-  status,
-  isOpen,
-  onToggle,
-  onView,
-  onPay,
-}) => {
-  const dropdownId = `${itemType}-${itemId}`;
-  return (
-    <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-      <div className="relative">
-        <button
-          onClick={() => onToggle(dropdownId)}
-          className="p-1 hover:bg-gray-200 rounded-md transition-colors"
-        >
-          <HugeiconsIcon
-            icon={MoreVerticalIcon}
-            className="w-4 h-4 text-gray-600"
-          />
-        </button>
-        {isOpen && (
-          <div className="absolute right-0 mt-1 w-24 bg-white rounded-md shadow-lg border border-gray-200 z-[100]">
-            <button
-              onClick={() => onView(itemId)}
-              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 rounded-t-md"
-            >
-              View
-            </button>
-            {itemType === "invoice" && status !== "Paid" && (
-              <button
-                onClick={() => onPay(itemId)}
-                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 rounded-b-md"
-              >
-                Pay
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+// Fallback prettifier
+const prettifyFieldName = (key: string) => {
+  if (fieldNameMap[key]) return fieldNameMap[key];
+  return key
+    .replace(/__/g, " ")
+    .replace(/_/g, " ")
+    .replace(
+      /\w\S*/g,
+      (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+    );
 };
 
 const InvoiceList: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"invoice" | "creditNotes">(
-    "invoice"
+  // tab switching
+  const [activeTab, setActiveTab] = useState<"invoices" | "creditNotes">(
+    "invoices"
   );
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] =
-    useState<Invoice | null>(null);
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10; // Number of items per page
+  // ===== Invoices State =====
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoiceLoading, setInvoiceLoading] = useState(true);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const itemsPerPage = 10;
 
+  // ===== Credit Notes State =====
+  const [creditNotes, setCreditNotes] = useState<any[]>([]);
+  const [creditLoading, setCreditLoading] = useState(true);
+  const [creditError, setCreditError] = useState<string | null>(null);
+  const [creditPage, setCreditPage] = useState(1);
+
+  // ===== Fetch Invoices =====
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Fetch Invoices
-        const invoicesCollectionRef = collection(db, "customerInvoices");
-        const invoiceSnapshot = await getDocs(invoicesCollectionRef);
-        const fetchedInvoices = invoiceSnapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            number: data.Name || "N/A",
-            jobRef: data.Job__r_Name || "N/A",
-            date: data.Date__c || "N/A",
-            amount: data.Total_Amount_with_VAT__c || 0,
-            status: data.Status__c || "Unknown",
-            due: data.Balance_Outstanding_with_Interest__c || 0,
-          } as Invoice;
-        });
-        setInvoices(fetchedInvoices);
+    const fetchInvoices = async () => {
+      const authToken = sessionStorage.getItem("authToken");
+      const currentAccountId =
+        sessionStorage.getItem("currentAccountId") ||
+        sessionStorage.getItem("accountId");
 
-        // Fetch Credit Notes
-        const creditNotesCollectionRef = collection(db, "customerCreditNotes");
-        const creditNoteSnapshot = await getDocs(creditNotesCollectionRef);
-        const fetchedCreditNotes = creditNoteSnapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            number: data.Name || "N/A",
-            invoiceNumber: data.Invoice_Number__c || "N/A",
-            jobRef: data.Job_Number__c || "N/A",
-            date: data.Date__c || "N/A",
-            amount: data.Amount__c || 0,
-          } as CreditNote;
-        });
-        setCreditNotes(fetchedCreditNotes);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(
-          "Failed to load data. Please check your connection and Firestore rules."
+      if (!authToken || !currentAccountId) {
+        setInvoiceError(
+          "You are not logged in or account ID is missing. Please log in to view invoices."
         );
+        setInvoiceLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/invoice-api/services/apexrest/portal/api/v1/invoices?currentAccountId=${currentAccountId}`,
+          { headers: { Authorization: `Bearer ${authToken}` } }
+        );
+        if (response.status === 401) {
+          sessionStorage.clear();
+          window.location.href = "/login";
+          return;
+        }
+        const data: ApiResponse<any> = await response.json();
+        console.log("Fetched Invoices:", data);
+        if (response.ok && data.success) setInvoices(data.data || []);
+        else throw new Error(data.message || "Failed to fetch invoices.");
+      } catch (err: any) {
+        setInvoiceError(err.message);
       } finally {
-        setIsLoading(false);
+        setInvoiceLoading(false);
       }
     };
-
-    fetchData();
+    fetchInvoices();
   }, []);
 
-  // --- Pagination Logic ---
-  const handleTabChange = (tab: "invoice" | "creditNotes") => {
-    setActiveTab(tab);
-    setCurrentPage(1); // Reset to first page on tab switch
-  };
+  // ===== Fetch Credit Notes =====
+  useEffect(() => {
+    const fetchCreditNotes = async () => {
+      const authToken = sessionStorage.getItem("authToken");
+      const currentAccountId =
+        sessionStorage.getItem("currentAccountId") ||
+        sessionStorage.getItem("accountId");
 
-  const activeList = activeTab === "invoice" ? invoices : creditNotes;
-  const totalPages = Math.ceil(activeList.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = activeList.slice(indexOfFirstItem, indexOfLastItem);
-
-  const handleNextPage = () =>
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
-
-  // --- Helper Functions ---
-  const handleSort = () => console.log("Sort clicked");
-  const handleFilter = () => console.log("Filter clicked");
-  const handleAccountStatement = () => console.log("Account Statement clicked");
-  const toggleDropdown = (itemId: string) =>
-    setOpenDropdown(openDropdown === itemId ? null : itemId);
-  const closeDropdown = () => setOpenDropdown(null);
-  const closePaymentModal = () => {
-    setIsPaymentModalOpen(false);
-    setSelectedInvoiceForPayment(null);
-  };
-  const toggleExpandedItem = (itemId: string) => {
-    const newExpandedItems = new Set(expandedItems);
-    if (newExpandedItems.has(itemId)) {
-      newExpandedItems.delete(itemId);
-    } else {
-      newExpandedItems.add(itemId);
-    }
-    setExpandedItems(newExpandedItems);
-  };
-  const handleView = (itemId: string) => {
-    console.log("View clicked for item:", itemId);
-    closeDropdown();
-  };
-  const handlePay = (itemId: string) => {
-    const invoice = invoices.find((inv) => inv.id === itemId);
-    if (invoice) {
-      setSelectedInvoiceForPayment(invoice);
-      setIsPaymentModalOpen(true);
-    }
-    closeDropdown();
-  };
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Paid":
-        return "text-green-600 bg-green-100";
-      case "Outstanding":
-        return "text-red-600 bg-red-100";
-      default:
-        return "text-gray-600 bg-gray-100";
-    }
-  };
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "Paid":
-        return (
-          <HugeiconsIcon
-            icon={CheckmarkCircle02Icon}
-            className="w-4 h-4 text-green-600"
-          />
+      if (!authToken || !currentAccountId) {
+        setCreditError(
+          "You are not logged in or account ID is missing. Please log in to view credit notes."
         );
-      case "Outstanding":
-        return (
-          <HugeiconsIcon
-            icon={AlertCircleIcon}
-            className="w-4 h-4 text-red-600"
-          />
+        setCreditLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/creditnotes-api/services/apexrest/portal/api/v1/creditnotes?currentAccountId=${currentAccountId}`,
+          { headers: { Authorization: `Bearer ${authToken}` } }
         );
-      default:
-        return null;
+        if (response.status === 401) {
+          sessionStorage.clear();
+          window.location.href = "/login";
+          return;
+        }
+        const data: ApiResponse<any> = await response.json();
+        console.log("Fetched Credit Notes:", data);
+        if (response.ok && data.success) setCreditNotes(data.data || []);
+        else throw new Error(data.message || "Failed to fetch credit notes.");
+      } catch (err: any) {
+        setCreditError(err.message);
+      } finally {
+        setCreditLoading(false);
+      }
+    };
+    fetchCreditNotes();
+  }, []);
+
+  // ===== Pagination Helpers =====
+  const paginate = (
+    setter: React.Dispatch<React.SetStateAction<number>>,
+    page: number
+  ) => setter(page);
+
+  const LoadingRow = () => (
+    <tr className="animate-pulse">
+      {[...Array(6)].map((_, i) => (
+        <td key={i} className="px-4 py-3 border-b border-gray-200">
+          <div className="h-4 bg-gray-200 rounded"></div>
+        </td>
+      ))}
+    </tr>
+  );
+
+  // ===== Render Table (Dynamic with Prettified Headers) =====
+  const renderTable = (
+    data: any[],
+    loading: boolean,
+    error: string | null,
+    page: number,
+    setPage: React.Dispatch<React.SetStateAction<number>>,
+    label: string
+  ) => {
+    const indexOfLast = page * itemsPerPage;
+    const indexOfFirst = indexOfLast - itemsPerPage;
+    const currentItems = data.slice(indexOfFirst, indexOfLast);
+    const totalPages = Math.ceil(data.length / itemsPerPage);
+
+    // Get keys dynamically (skip Id for display)
+    const keys =
+      data.length > 0 ? Object.keys(data[0]).filter((k) => k !== "Id") : [];
+
+    if (loading) {
+      return (
+        <div className="bg-white rounded-[12px] border shadow p-6">
+          <table className="w-full">
+            <thead>
+              <tr>
+                {[...Array(6)].map((_, i) => (
+                  <th key={i} className="px-4 py-3" />
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(5)].map((_, i) => (
+                <LoadingRow key={i} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
     }
+    if (error) {
+      return (
+        <div className="bg-white rounded-[12px] border shadow p-8 text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
+      );
+    }
+    return (
+      <div className="bg-white rounded-[12px] border shadow p-6">
+        <h2 className="text-lg font-bold mb-6" style={{ color: BLUE }}>
+          Your {label} ({data.length})
+        </h2>
+        {data.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No {label.toLowerCase()} found</p>
+          </div>
+        ) : (
+          <>
+            <table className="w-full">
+              <thead>
+                <tr
+                  style={{ borderColor: BORDER_SUBTLE }}
+                  className="border-b-2"
+                >
+                  {keys.map((key) => (
+                    <th
+                      key={key}
+                      className="px-4 py-3 text-left text-xs font-extrabold"
+                      style={{ color: BLUE }}
+                    >
+                      {prettifyFieldName(key)}
+                    </th>
+                  ))}
+                  <th
+                    className="px-4 py-3 text-center text-xs font-extrabold"
+                    style={{ color: BLUE }}
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentItems.map((item) => (
+                  <tr
+                    key={item.Id}
+                    className="border-b"
+                    style={{ borderColor: BORDER_SUBTLE }}
+                  >
+                    {keys.map((key) => (
+                      <td key={key} className="px-4 py-3">
+                        {item[key] || "—"}
+                      </td>
+                    ))}
+                    <td className="px-4 py-3 text-center">
+                      <button className="text-blue-600">View</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {totalPages > 1 && (
+              <div className="mt-6 flex justify-between items-center">
+                <p className="text-sm" style={{ color: SUBTITLE }}>
+                  Showing {indexOfFirst + 1} to{" "}
+                  {Math.min(indexOfLast, data.length)} of {data.length} results
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    disabled={page === 1}
+                    onClick={() => paginate(setPage, page - 1)}
+                    className="px-3 py-1 border rounded-md"
+                  >
+                    Previous
+                  </button>
+                  {[...Array(totalPages)].map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => paginate(setPage, i + 1)}
+                      className={`px-3 py-1 border rounded-md ${
+                        page === i + 1 ? "bg-blue-600 text-white" : ""
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    disabled={page === totalPages}
+                    onClick={() => paginate(setPage, page + 1)}
+                    className="px-3 py-1 border rounded-md"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
   };
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency: "GBP",
-    }).format(amount);
 
   return (
-    <div className="p-2 lg:p-6" onClick={closeDropdown}>
-      <div className="flex gap-4 mb-6">
-        <div className="flex bg-white rounded-md p-2 gap-2">
+    <div className="w-full">
+      {/* Banner */}
+      <div
+        className="relative w-full h-[130px] grid grid-cols-2 bg-cover bg-center"
+        style={{ backgroundImage: `url(${banner})` }}
+      >
+        <div className="absolute inset-0 bg-[#27549D]/50" />
+        <div className="p-8 flex items-end z-10">
+          <p className="text-white text-xl">Invoices & Credit Notes</p>
+        </div>
+        <div className="pt-4 relative z-10">
+          <NavHeader />
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="px-4 py-6">
+        <div className="flex gap-4 mb-6">
           <button
-            onClick={() => handleTabChange("invoice")}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              activeTab === "invoice"
-                ? "bg-accent text-primary border"
-                : "bg-white text-gray-700 hover:bg-gray-50"
+            onClick={() => setActiveTab("invoices")}
+            className={`px-4 py-2 rounded-md font-medium ${
+              activeTab === "invoices"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700"
             }`}
           >
             Invoices
           </button>
           <button
-            onClick={() => handleTabChange("creditNotes")}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            onClick={() => setActiveTab("creditNotes")}
+            className={`px-4 py-2 rounded-md font-medium ${
               activeTab === "creditNotes"
-                ? "bg-accent text-primary border"
-                : "bg-white text-gray-700 hover:bg-gray-50"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700"
             }`}
           >
             Credit Notes
           </button>
         </div>
-        <div className="flex gap-2 ml-auto">
-          <Button onClick={handleSort} variant="outline" size="sm">
-            <div className="flex items-center gap-1">
-              <HugeiconsIcon icon={Sorting05Icon} className="w-4 h-4" />
-              <span className="hidden md:block">Sort</span>
-            </div>
-          </Button>
-          <Button onClick={handleFilter} variant="outline" size="sm">
-            <div className="flex items-center gap-1">
-              <HugeiconsIcon icon={FilterIcon} className="w-4 h-4" />
-              <span className="hidden md:block">Filter</span>
-            </div>
-          </Button>
-          <Button onClick={handleAccountStatement} variant="primary" size="sm">
-            <div className="flex items-center gap-1">
-              <HugeiconsIcon icon={Download05Icon} className="w-4 h-4" />
-              <span className="hidden md:block">Account Statement</span>
-            </div>
-          </Button>
-        </div>
-      </div>
 
-      {isLoading && <div className="text-center p-10">Loading data...</div>}
-      {error && <div className="text-center p-10 text-red-600">{error}</div>}
-
-      {!isLoading && !error && (
-        <>
-          <div className="overflow-x-auto">
-            {activeTab === "invoice" ? (
-              <div className="min-w-full">
-                <div className="hidden md:grid grid-cols-6 gap-4 p-4 bg-gray-50 border-b border-gray-200 font-medium text-gray-700">
-                  <div className="text-center">Number</div>
-                  <div className="text-center">Job Ref.</div>
-                  <div className="text-center">Date</div>
-                  <div className="text-center">Amount</div>
-                  <div className="text-center">Status</div>
-                  <div className="text-center">Due</div>
-                </div>
-                <div className="md:hidden grid grid-cols-5 gap-4 p-4 bg-gray-50 border-b border-gray-200 font-medium text-gray-700">
-                  <div className="text-center">Number</div>
-                  <div className="text-center">Date</div>
-                  <div className="text-center">Amount</div>
-                  <div className="text-center">Status</div>
-                  <div className="text-center"></div>
-                </div>
-                {currentItems.map((item) => {
-                  const invoice = item as Invoice;
-                  return (
-                    <div key={invoice.id}>
-                      <div
-                        className={`hidden md:grid relative grid-cols-6 gap-4 p-4 my-2 border-b rounded-md border-gray-200 hover:bg-gray-50 transition-colors ${
-                          invoice.status === "Outstanding"
-                            ? "bg-red-50"
-                            : "bg-white"
-                        }`}
-                      >
-                        <div className="font-medium flex justify-center items-center">
-                          {invoice.number}
-                        </div>
-                        <div className="text-gray-700 flex justify-center items-center">
-                          {invoice.jobRef}
-                        </div>
-                        <div className="text-gray-700 flex justify-center items-center">
-                          {new Date(invoice.date).toLocaleDateString()}
-                        </div>
-                        <div className="font-medium flex justify-center items-center">
-                          {formatCurrency(invoice.amount)}
-                        </div>
-                        <div className="flex items-center justify-center text-xs font-medium">
-                          <span
-                            className={`text-center px-1.5 py-1 rounded-md flex items-center gap-1 ${getStatusColor(
-                              invoice.status
-                            )}`}
-                          >
-                            {invoice.status}
-                          </span>
-                        </div>
-                        <div className="font-medium flex justify-center items-center">
-                          {formatCurrency(invoice.due)}
-                        </div>
-                        <ActionDropdown
-                          itemId={invoice.id}
-                          itemType="invoice"
-                          status={invoice.status}
-                          isOpen={openDropdown === `invoice-${invoice.id}`}
-                          onToggle={toggleDropdown}
-                          onView={handleView}
-                          onPay={handlePay}
-                        />
-                      </div>
-                      <div
-                        className={`md:hidden ${
-                          invoice.status === "Outstanding"
-                            ? "bg-red-50"
-                            : "bg-white"
-                        } my-2 border-b rounded-md border-gray-200`}
-                      >
-                        <div
-                          onClick={() => toggleExpandedItem(invoice.id)}
-                          className={`grid grid-cols-5 gap-4 p-4 hover:bg-gray-50 transition-colors cursor-pointer`}
-                        >
-                          <div className="font-medium flex justify-center items-center">
-                            {invoice.number}
-                          </div>
-                          <div className="text-gray-700 flex justify-center items-center">
-                            {new Date(invoice.date).toLocaleDateString()}
-                          </div>
-                          <div className="font-medium flex justify-center items-center">
-                            {formatCurrency(invoice.amount)}
-                          </div>
-                          <div className="flex items-center justify-center text-xs font-medium">
-                            <span
-                              className={`text-center px-1.5 py-1 rounded-md flex items-center gap-1 ${getStatusColor(
-                                invoice.status
-                              )}`}
-                            >
-                              {getStatusIcon(invoice.status)}
-                            </span>
-                          </div>
-                          <div className="flex justify-center items-center">
-                            <HugeiconsIcon
-                              icon={
-                                expandedItems.has(invoice.id)
-                                  ? ArrowUp01Icon
-                                  : ArrowDown01Icon
-                              }
-                              className="w-4 h-4 text-gray-600"
-                            />
-                          </div>
-                        </div>
-                        {expandedItems.has(invoice.id) && (
-                          <div className="p-4 border-t border-gray-200 bg-gray-50">
-                            <div className="space-y-3">
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-600 font-medium">
-                                  Job Reference:
-                                </span>
-                                <span className="font-medium">
-                                  {invoice.jobRef}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-600 font-medium">
-                                  Due:
-                                </span>
-                                <span className="font-medium">
-                                  {formatCurrency(invoice.due)}
-                                </span>
-                              </div>
-                              <div className="flex gap-2 mt-4">
-                                <Button
-                                  onClick={() => handleView(invoice.id)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="flex-1"
-                                >
-                                  View
-                                </Button>
-                                {invoice.status !== "Paid" && (
-                                  <Button
-                                    onClick={() => handlePay(invoice.id)}
-                                    variant="primary"
-                                    size="sm"
-                                    className="flex-1"
-                                  >
-                                    Pay
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="min-w-full">
-                <div className="hidden md:grid grid-cols-5 gap-4 p-4 bg-gray-50 border-b border-gray-200 font-medium text-gray-700">
-                  <div className="text-center">Number</div>
-                  <div className="text-center">Invoice Number</div>
-                  <div className="text-center">Job Ref</div>
-                  <div className="text-center">Date</div>
-                  <div className="text-center">Amount</div>
-                </div>
-                <div className="md:hidden grid grid-cols-5 gap-4 p-4 bg-gray-50 border-b border-gray-200 font-medium text-gray-700">
-                  <div className="text-center">Number</div>
-                  <div className="text-center">Invoice Number</div>
-                  <div className="text-center">Job Ref</div>
-                  <div className="text-center">Date</div>
-                  <div className="text-center"></div>
-                </div>
-                {currentItems.map((item) => {
-                  const creditNote = item as CreditNote;
-                  return (
-                    <div key={creditNote.id}>
-                      <div className="hidden md:grid relative grid-cols-5 gap-4 my-2 p-4 bg-white rounded-md border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                        <div className="font-medium text-center">
-                          {creditNote.number}
-                        </div>
-                        <div className="text-gray-700 text-center">
-                          {creditNote.invoiceNumber}
-                        </div>
-                        <div className="text-gray-700 text-center">
-                          {creditNote.jobRef}
-                        </div>
-                        <div className="text-gray-700 text-center">
-                          {new Date(creditNote.date).toLocaleDateString()}
-                        </div>
-                        <div className="font-medium text-center">
-                          {formatCurrency(creditNote.amount)}
-                        </div>
-                        <ActionDropdown
-                          itemId={creditNote.id}
-                          itemType="creditNote"
-                          isOpen={
-                            openDropdown === `creditNote-${creditNote.id}`
-                          }
-                          onToggle={toggleDropdown}
-                          onView={handleView}
-                          onPay={handlePay}
-                        />
-                      </div>
-                      <div className="md:hidden bg-white my-2 border-b rounded-md border-gray-200">
-                        <div
-                          onClick={() => toggleExpandedItem(creditNote.id)}
-                          className="grid grid-cols-5 gap-4 p-4 hover:bg-gray-50 transition-colors cursor-pointer"
-                        >
-                          <div className="font-medium text-center">
-                            {creditNote.number}
-                          </div>
-                          <div className="text-gray-700 text-center">
-                            {creditNote.invoiceNumber}
-                          </div>
-                          <div className="text-gray-700 text-center">
-                            {creditNote.jobRef}
-                          </div>
-                          <div className="text-gray-700 text-center">
-                            {new Date(creditNote.date).toLocaleDateString()}
-                          </div>
-                          <div className="flex justify-center items-center">
-                            <HugeiconsIcon
-                              icon={
-                                expandedItems.has(creditNote.id)
-                                  ? ArrowUp01Icon
-                                  : ArrowDown01Icon
-                              }
-                              className="w-4 h-4 text-gray-600"
-                            />
-                          </div>
-                        </div>
-                        {expandedItems.has(creditNote.id) && (
-                          <div className="p-4 border-t border-gray-200 bg-gray-50">
-                            <div className="space-y-3">
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-600 font-medium">
-                                  Amount:
-                                </span>
-                                <span className="font-medium">
-                                  {formatCurrency(creditNote.amount)}
-                                </span>
-                              </div>
-                              <div className="flex gap-2 mt-4">
-                                <Button
-                                  onClick={() => handleView(creditNote.id)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="flex-1"
-                                >
-                                  View
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+        {/* Content Switch */}
+        {activeTab === "invoices"
+          ? renderTable(
+              invoices,
+              invoiceLoading,
+              invoiceError,
+              invoicePage,
+              setInvoicePage,
+              "Invoice"
+            )
+          : renderTable(
+              creditNotes,
+              creditLoading,
+              creditError,
+              creditPage,
+              setCreditPage,
+              "Credit Note"
             )}
-          </div>
-          {activeList.length > itemsPerPage && (
-            <div className="flex justify-between items-center mt-6">
-              <Button
-                onClick={handlePrevPage}
-                disabled={currentPage === 1}
-                variant="outline"
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-gray-700">
-                Page {currentPage} of {totalPages}
-              </span>
-              <Button
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                variant="outline"
-              >
-                Next
-              </Button>
-            </div>
-          )}
-        </>
-      )}
-
-      {openDropdown && (
-        <div className="fixed inset-0 z-40" onClick={closeDropdown} />
-      )}
-      {selectedInvoiceForPayment && (
-        <CreditCardChoiceModal
-          isOpen={isPaymentModalOpen}
-          onClose={closePaymentModal}
-          invoiceNumber={selectedInvoiceForPayment.number}
-          amount={selectedInvoiceForPayment.due}
-        />
-      )}
+      </div>
     </div>
   );
 };

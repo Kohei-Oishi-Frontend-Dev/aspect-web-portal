@@ -1,30 +1,31 @@
-import React from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckmarkCircle02Icon, CancelCircleIcon } from '@hugeicons/core-free-icons';
+import React from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  CheckmarkCircle02Icon,
+  CancelCircleIcon,
+} from "@hugeicons/core-free-icons";
 
-const UserAccount: React.FC = () => {
-  // User account information data structure, Ideally this is coming from Context file
+// Props interface for receiving data from the parent
+interface UserAccountProps {
+  data: {
+    accountType: string;
+    creditLimit: number | null;
+    paymentTerms: string | null;
+  };
+}
+
+const UserAccount: React.FC<UserAccountProps> = ({ data }) => {
   const userAccountInfo = [
-    {
-      label: "Account Type",
-      value: "Corporate"
-    },
+    { label: "Account Type", value: data.accountType },
     {
       label: "Credit Limit",
-      value: "£ 12500"
+      value: data.creditLimit
+        ? `£ ${data.creditLimit.toLocaleString()}`
+        : "N/A",
     },
-    {
-      label: "Payment Method",
-      value: "Credit account"
-    },
-    {
-      label: "Payment Terms",
-      value: "30 days"
-    },
-    {
-      label: "Status",
-      value: "Active"
-    }
+    { label: "Payment Method", value: "Credit account" }, // Assuming this is static
+    { label: "Payment Terms", value: data.paymentTerms || "N/A" },
+    { label: "Status", value: "Active" }, // Assuming this is static
   ];
 
   const renderValue = (label: string, value: string) => {
@@ -32,12 +33,22 @@ const UserAccount: React.FC = () => {
       const isActive = value.toLowerCase() === "active";
       return (
         <div className={`flex items-center gap-2 rounded`}>
-          <div className={`flex items-center gap-2 px-2 py-1 rounded ${isActive ? 'bg-green-50 text-green-700 border border-green-500' : 'bg-red-50 text-red-700'}`}>
-            <HugeiconsIcon 
-              icon={isActive ? CheckmarkCircle02Icon : CancelCircleIcon} 
-              className={`w-5 h-5 ${isActive ? 'text-green-600' : 'text-red-600'}`}
+          <div
+            className={`flex items-center gap-2 px-2 py-1 rounded ${
+              isActive
+                ? "bg-green-50 text-green-700 border border-green-500"
+                : "bg-red-50 text-red-700"
+            }`}
+          >
+            <HugeiconsIcon
+              icon={isActive ? CheckmarkCircle02Icon : CancelCircleIcon}
+              className={`w-5 h-5 ${
+                isActive ? "text-green-600" : "text-red-600"
+              }`}
             />
-            <span className={isActive ? "text-green-700" : "text-gray-900"}>{value}</span>
+            <span className={isActive ? "text-green-700" : "text-gray-900"}>
+              {value}
+            </span>
           </div>
         </div>
       );
